@@ -47,6 +47,30 @@ class Quote {
   /// 공유 텍스트 형식
   String get shareText =>
       '"$content"\n— $author${source != null ? ' ($source)' : ''}';
+
+  // ── 로컬 캐시용 직렬화 ────────────────────────────────────────────────────
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'content': content,
+        'author': author,
+        'source': source,
+        'language': language,
+        'isFeatured': isFeatured,
+        'tags': tags,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory Quote.fromMap(Map<String, dynamic> map) => Quote(
+        id: map['id'] as String,
+        content: _normalize(map['content'] as String? ?? ''),
+        author: _normalize(map['author'] as String? ?? '미상'),
+        source: map['source'] as String?,
+        language: map['language'] as String? ?? 'ko',
+        isFeatured: map['isFeatured'] as bool? ?? false,
+        tags: List<String>.from(map['tags'] as List? ?? []),
+        createdAt: DateTime.tryParse(map['createdAt'] as String? ?? '') ??
+            DateTime.now(),
+      );
 }
 
 /// 검색 결과 페이지 (offset 기반 페이지네이션)

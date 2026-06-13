@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/widgets/quote_card.dart';
 import '../../shared/widgets/state_views.dart';
+import 'category_detail_screen.dart';
 import 'search_notifier.dart';
 
 // ---------------------------------------------------------------------------
@@ -12,14 +13,14 @@ class _Category {
   final String tag;       // Firestore 태그 or 키워드
   final bool isKeyword;   // true → searchByKeyword, false → searchByTag
   final List<Color> gradient;
-  final IconData icon;
+  final String imageUrl;  // Unsplash 이미지 URL
 
   const _Category({
     required this.label,
     required this.tag,
     this.isKeyword = false,
     required this.gradient,
-    required this.icon,
+    required this.imageUrl,
   });
 }
 
@@ -29,74 +30,74 @@ const _kCategories = [
     label: '철학자',
     tag: '철학',
     gradient: [Color(0xFF667EEA), Color(0xFF764BA2)],
-    icon: Icons.psychology_outlined,
+    imageUrl: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '기업가',
     tag: '성공',
     gradient: [Color(0xFF11998E), Color(0xFF38EF7D)],
-    icon: Icons.trending_up_rounded,
+    imageUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '작가',
     tag: '독서',
     gradient: [Color(0xFFFC5C7D), Color(0xFF6A3093)],
-    icon: Icons.auto_stories_outlined,
+    imageUrl: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '과학자',
     tag: '지혜',
     gradient: [Color(0xFF4776E6), Color(0xFF8E54E9)],
-    icon: Icons.science_outlined,
+    imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '예술가',
-    tag: '예술',
+    tag: '창의력',
     gradient: [Color(0xFFFF512F), Color(0xFFDD2476)],
-    icon: Icons.palette_outlined,
+    imageUrl: 'https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '운동선수',
     tag: '도전',
     gradient: [Color(0xFF00C9FF), Color(0xFF0077B6)],
-    icon: Icons.sports_outlined,
+    imageUrl: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '정치가',
     tag: '용기',
     gradient: [Color(0xFFF7971E), Color(0xFFFFD200)],
-    icon: Icons.account_balance_outlined,
+    imageUrl: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '종교인',
     tag: '믿음',
     gradient: [Color(0xFF56CCF2), Color(0xFF2F80ED)],
-    icon: Icons.self_improvement_outlined,
+    imageUrl: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&q=80&fit=crop',
   ),
   // ── 감정·주제별 ─────────────────────────────────────────────
   _Category(
     label: '사랑',
     tag: '사랑',
     gradient: [Color(0xFFFF6F91), Color(0xFFCC3366)],
-    icon: Icons.favorite_border_rounded,
+    imageUrl: 'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '행복',
     tag: '행복',
     gradient: [Color(0xFFFFB347), Color(0xFFFF7F50)],
-    icon: Icons.wb_sunny_outlined,
+    imageUrl: 'https://images.unsplash.com/photo-1490730141103-6cac27aaab94?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '자기계발',
     tag: '자기계발',
     gradient: [Color(0xFF20BF55), Color(0xFF01BAEF)],
-    icon: Icons.rocket_launch_outlined,
+    imageUrl: 'https://images.unsplash.com/photo-1434754205268-ad3b5f549b11?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '삶',
     tag: '삶',
     gradient: [Color(0xFFDAA520), Color(0xFFB8860B)],
-    icon: Icons.spa_outlined,
+    imageUrl: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&q=80&fit=crop',
   ),
 ];
 
@@ -155,13 +156,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void _selectCategory(_Category cat) {
     _focusNode.unfocus();
     setState(() => _isSearching = false);
-    if (cat.isKeyword) {
-      _controller.text = cat.tag;
-      ref.read(searchNotifierProvider.notifier).searchByKeyword(cat.tag);
-    } else {
-      _controller.text = cat.label;
-      ref.read(searchNotifierProvider.notifier).searchByTag(cat.tag);
-    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CategoryDetailScreen(
+          label: cat.label,
+          tag: cat.tag,
+          gradient: cat.gradient,
+          imageUrl: cat.imageUrl,
+        ),
+      ),
+    );
   }
 
   @override
@@ -304,7 +308,7 @@ class _CategoryGrid extends StatelessWidget {
             ),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              mainAxisSpacing: 20,   // 아이콘 오버플로우 공간 확보
+              mainAxisSpacing: 12,
               crossAxisSpacing: 12,
               childAspectRatio: 1.6,
             ),
@@ -326,10 +330,9 @@ class _CategoryCard extends StatelessWidget {
     final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
-      // clipBehavior.none → 아이콘이 카드 밖으로 살짝 튀어나옴
       child: ClipRRect(
+        // overflow: hidden — 이미지가 카드 밖으로 절대 탈출하지 않음
         borderRadius: BorderRadius.circular(16),
-        clipBehavior: Clip.none,
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -337,66 +340,65 @@ class _CategoryCard extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(16),
           ),
           child: Stack(
-            clipBehavior: Clip.none,
             children: [
-              // ── 배경 장식: 우측 상단 반투명 원 ──────────────────
+              // ── 1. 실제 이미지 (우측 배치, 투명도 0.72) ─────────
               Positioned(
-                top: -12,
-                right: -12,
-                child: Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.12),
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: 130,
+                child: Opacity(
+                  opacity: 0.72,
+                  child: Image.network(
+                    category.imageUrl,
+                    fit: BoxFit.cover,
+                    // 이미지 로드 실패 시 조용히 빈칸 처리
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    loadingBuilder: (_, child, progress) =>
+                        progress == null ? child : const SizedBox.shrink(),
                   ),
                 ),
               ),
-              // ── 배경 장식: 좌측 하단 작은 원 ────────────────────
-              Positioned(
-                bottom: -18,
-                left: -10,
-                child: Container(
-                  width: 52,
-                  height: 52,
+              // ── 2. 좌→우 그라디언트 블렌드 마스크 ───────────────
+              // 이미지와 배경색이 자연스럽게 섞이는 Apple Music 효과
+              Positioned.fill(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.08),
+                    gradient: LinearGradient(
+                      colors: [
+                        category.gradient.first,
+                        category.gradient.first.withValues(alpha: 0.75),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.38, 1.0],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
                   ),
                 ),
               ),
-              // ── 카테고리명: 좌측 상단 ────────────────────────────
+              // ── 3. 카테고리명: 좌측 상단, 흰색 볼드 ─────────────
               Positioned(
                 top: 14,
                 left: 14,
-                right: 60,
+                right: 72,
                 child: Text(
                   category.label,
                   style: theme.textTheme.titleSmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
+                    fontSize: 15,
+                    letterSpacing: -0.4,
                     shadows: [
                       Shadow(
-                        color: Colors.black.withValues(alpha: 0.25),
-                        blurRadius: 6,
+                        color: Colors.black.withValues(alpha: 0.45),
+                        blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
                     ],
                   ),
-                ),
-              ),
-              // ── 아이콘: 우측 하단, 카드 밖으로 살짝 오버플로우 ──
-              Positioned(
-                bottom: -10,
-                right: -4,
-                child: Icon(
-                  category.icon,
-                  size: 64,
-                  color: Colors.white.withValues(alpha: 0.35),
                 ),
               ),
             ],

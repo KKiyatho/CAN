@@ -99,11 +99,68 @@ class QuoteRepository {
       nextOffset: offset + page.length,
     );
   }
+
+  // -------------------------------------------------------------------------
+  // 카테고리 상세용 커서 기반 페이지네이션 (startAfterDocument)
+  // -------------------------------------------------------------------------
+  /// [tag] 에 해당하는 명언을 [limit]개씩 가져온다.
+  /// [lastDoc]이 있으면 그 문서 이후부터 이어서 가져온다 (다음 페이지).
+  ///
+  /// Firestore arrayContains + 커서 기반 → composite index 불필요.
+  /// language 필터는 클라이언트 사이드에서 처리한다.
+  Future<TagPageResult> fetchByTagPaginated(
+    String tag, {
+    DocumentSnapshot? lastDoc,
+    int limit = 20,
+  }) async {
+    Query<Map<String, dynamic>> query = _db
+        .collection('quotes')
+        .where('tags', arrayContains: tag)
+        .limit(limit * 2); // 언어 필터 손실 보정
+
+    if (lastDoc != null) {
+      query = query.startAfterDocument(lastDoc);
+    }
+
+    final snapshot = await query.get();
+    final docs = snapshot.docs;
+
+    final quotes = docs
+        .map(Quote.fromFirestore)
+        .where((q) => q.language == 'ko')
+        .take(limit)
+        .toList();
+
+    return TagPageResult(
+      quotes: quotes,
+      lastDoc: docs.isNotEmpty ? docs.last : null,
+      hasMore: docs.length >= limit,
+    );
+  }
 }
 
 final quoteRepositoryProvider = Provider<QuoteRepository>(
   (ref) => QuoteRepository(ref.watch(firestoreProvider)),
 );
+
+// ---------------------------------------------------------------------------
+// TagPageResult (커서 기반 페이지네이션 결과)
+// ---------------------------------------------------------------------------
+class TagPageResult {
+  final List<Quote> quotes;
+
+  /// 다음 페이지 커서 (마지막 문서 스냅샷)
+  final DocumentSnapshot? lastDoc;
+
+  /// 더 불러올 데이터가 있는지 여부
+  final bool hasMore;
+
+  const TagPageResult({
+    required this.quotes,
+    this.lastDoc,
+    required this.hasMore,
+  });
+}
 
 // ---------------------------------------------------------------------------
 // BookmarkRepository (로컬 SharedPreferences)
