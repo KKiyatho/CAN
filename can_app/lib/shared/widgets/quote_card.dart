@@ -14,13 +14,27 @@ class QuoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    // 화면 너비에 따라 패딩·폰트 크기 조정
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isNarrow = screenWidth < 400;
+    final hPad = isNarrow ? 18.0 : 28.0;
+    final vPad = isNarrow ? 24.0 : 36.0;
+    final contentStyle = isNarrow
+        ? theme.textTheme.titleMedium?.copyWith(
+            height: 1.7,
+            fontWeight: FontWeight.w500,
+          )
+        : theme.textTheme.titleLarge?.copyWith(
+            height: 1.6,
+            fontWeight: FontWeight.w500,
+          );
 
     return Card(
       elevation: 0,
       color: colorScheme.surfaceContainerHighest,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,14 +52,10 @@ class QuoteCard extends StatelessWidget {
               const SizedBox(height: 16),
             ],
 
-            // 명언 본문
+            // 명언 본문 — justify 제거 (한국어 모바일에서 단어 간격 왜곡)
             Text(
               '"${quote.content}"',
-              textAlign: TextAlign.justify,
-              style: theme.textTheme.titleLarge?.copyWith(
-                height: 1.6,
-                fontWeight: FontWeight.w500,
-              ),
+              style: contentStyle,
             ),
             const SizedBox(height: 20),
 
@@ -58,18 +68,24 @@ class QuoteCard extends StatelessWidget {
                   color: colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  quote.author,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
+                Flexible(
+                  child: Text(
+                    quote.author,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 if (quote.source != null) ...[
-                  Text(
-                    ' · ${quote.source}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.outline,
+                  Flexible(
+                    child: Text(
+                      ' · ${quote.source}',
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.outline,
+                      ),
                     ),
                   ),
                 ],
