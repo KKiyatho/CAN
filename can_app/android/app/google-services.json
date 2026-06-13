@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "274239019801",
+    "project_id": "vibe-coding-1-abec4",
+    "storage_bucket": "vibe-coding-1-abec4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:274239019801:android:b68a2059819cd77e5f4388",
+        "android_client_info": {
+          "package_name": "com.can.can_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCXK5O5CzSiyCYHnQgPUzQory_d_a5PG4Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

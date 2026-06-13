@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // quotes 컬렉션: 누구나 읽기 가능, 쓰기는 불가 (Admin SDK로만 가능)
+    match /quotes/{quoteId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
