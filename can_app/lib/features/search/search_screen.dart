@@ -9,80 +9,94 @@ import 'search_notifier.dart';
 // ---------------------------------------------------------------------------
 class _Category {
   final String label;
-  final String tag;           // Firestore 태그 or 키워드
-  final bool isKeyword;       // true → searchByKeyword, false → searchByTag
+  final String tag;       // Firestore 태그 or 키워드
+  final bool isKeyword;   // true → searchByKeyword, false → searchByTag
   final List<Color> gradient;
+  final IconData icon;
 
   const _Category({
     required this.label,
     required this.tag,
     this.isKeyword = false,
     required this.gradient,
+    required this.icon,
   });
 }
 
 const _kCategories = [
+  // ── 직업별 ──────────────────────────────────────────────────
   _Category(
-    label: '행복',
-    tag: '행복',
-    gradient: [Color(0xFFFFB347), Color(0xFFFF7F50)],
+    label: '철학자',
+    tag: '철학',
+    gradient: [Color(0xFF667EEA), Color(0xFF764BA2)],
+    icon: Icons.psychology_outlined,
   ),
   _Category(
-    label: '동기부여',
-    tag: '도전',
-    gradient: [Color(0xFF5C8DFF), Color(0xFF3A5FCC)],
-  ),
-  _Category(
-    label: '위로',
-    tag: '회복',
-    gradient: [Color(0xFFAF7AC5), Color(0xFF7D3C98)],
-  ),
-  _Category(
-    label: '성공',
+    label: '기업가',
     tag: '성공',
-    gradient: [Color(0xFF6BC46D), Color(0xFF2E8B57)],
+    gradient: [Color(0xFF11998E), Color(0xFF38EF7D)],
+    icon: Icons.trending_up_rounded,
   ),
+  _Category(
+    label: '작가',
+    tag: '독서',
+    gradient: [Color(0xFFFC5C7D), Color(0xFF6A3093)],
+    icon: Icons.auto_stories_outlined,
+  ),
+  _Category(
+    label: '과학자',
+    tag: '지혜',
+    gradient: [Color(0xFF4776E6), Color(0xFF8E54E9)],
+    icon: Icons.science_outlined,
+  ),
+  _Category(
+    label: '예술가',
+    tag: '예술',
+    gradient: [Color(0xFFFF512F), Color(0xFFDD2476)],
+    icon: Icons.palette_outlined,
+  ),
+  _Category(
+    label: '운동선수',
+    tag: '도전',
+    gradient: [Color(0xFF00C9FF), Color(0xFF0077B6)],
+    icon: Icons.sports_outlined,
+  ),
+  _Category(
+    label: '정치가',
+    tag: '용기',
+    gradient: [Color(0xFFF7971E), Color(0xFFFFD200)],
+    icon: Icons.account_balance_outlined,
+  ),
+  _Category(
+    label: '종교인',
+    tag: '믿음',
+    gradient: [Color(0xFF56CCF2), Color(0xFF2F80ED)],
+    icon: Icons.self_improvement_outlined,
+  ),
+  // ── 감정·주제별 ─────────────────────────────────────────────
   _Category(
     label: '사랑',
     tag: '사랑',
     gradient: [Color(0xFFFF6F91), Color(0xFFCC3366)],
+    icon: Icons.favorite_border_rounded,
   ),
   _Category(
-    label: '도전',
-    tag: '도전',
-    gradient: [Color(0xFF00C9FF), Color(0xFF0077B6)],
-  ),
-  _Category(
-    label: '삶',
-    tag: '삶',
-    gradient: [Color(0xFFFFD700), Color(0xFFDAA520)],
+    label: '행복',
+    tag: '행복',
+    gradient: [Color(0xFFFFB347), Color(0xFFFF7F50)],
+    icon: Icons.wb_sunny_outlined,
   ),
   _Category(
     label: '자기계발',
     tag: '자기계발',
     gradient: [Color(0xFF20BF55), Color(0xFF01BAEF)],
+    icon: Icons.rocket_launch_outlined,
   ),
   _Category(
-    label: '지혜',
-    tag: '철학',
-    isKeyword: true,
-    gradient: [Color(0xFF8E2DE2), Color(0xFF4A00E0)],
-  ),
-  _Category(
-    label: '용기',
-    tag: '용기',
-    gradient: [Color(0xFFFF512F), Color(0xFFDD2476)],
-  ),
-  _Category(
-    label: '시작',
-    tag: '시작',
-    gradient: [Color(0xFF11998E), Color(0xFF38EF7D)],
-  ),
-  _Category(
-    label: '명상',
-    tag: '노자',
-    isKeyword: true,
-    gradient: [Color(0xFF4776E6), Color(0xFF8E54E9)],
+    label: '삶',
+    tag: '삶',
+    gradient: [Color(0xFFDAA520), Color(0xFFB8860B)],
+    icon: Icons.spa_outlined,
   ),
 ];
 
@@ -290,9 +304,9 @@ class _CategoryGrid extends StatelessWidget {
             ),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              mainAxisSpacing: 12,
+              mainAxisSpacing: 20,   // 아이콘 오버플로우 공간 확보
               crossAxisSpacing: 12,
-              childAspectRatio: 1.7,
+              childAspectRatio: 1.6,
             ),
           ),
         ),
@@ -312,52 +326,81 @@ class _CategoryCard extends StatelessWidget {
     final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: category.gradient,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      // clipBehavior.none → 아이콘이 카드 밖으로 살짝 튀어나옴
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.none,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: category.gradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
           ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Stack(
-          children: [
-            // 반투명 패턴 — 우측 상단 큰 원
-            Positioned(
-              top: -16,
-              right: -16,
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.15),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // ── 배경 장식: 우측 상단 반투명 원 ──────────────────
+              Positioned(
+                top: -12,
+                right: -12,
+                child: Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
                 ),
               ),
-            ),
-            // 텍스트 — 좌측 하단
-            Align(
-              alignment: Alignment.bottomLeft,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+              // ── 배경 장식: 좌측 하단 작은 원 ────────────────────
+              Positioned(
+                bottom: -18,
+                left: -10,
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
+              ),
+              // ── 카테고리명: 좌측 상단 ────────────────────────────
+              Positioned(
+                top: 14,
+                left: 14,
+                right: 60,
                 child: Text(
                   category.label,
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  style: theme.textTheme.titleSmall?.copyWith(
                     color: Colors.white,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
                     shadows: [
                       Shadow(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        blurRadius: 4,
-                        offset: const Offset(0, 1),
+                        color: Colors.black.withValues(alpha: 0.25),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
-          ],
+              // ── 아이콘: 우측 하단, 카드 밖으로 살짝 오버플로우 ──
+              Positioned(
+                bottom: -10,
+                right: -4,
+                child: Icon(
+                  category.icon,
+                  size: 64,
+                  color: Colors.white.withValues(alpha: 0.35),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -28,8 +28,16 @@ class QuoteRepository {
           '(firebase/seed_data.js 실행 또는 Firebase 콘솔에서 직접 추가)');
     }
 
-    final docs = List.of(snapshot.docs)..shuffle();
-    return Quote.fromFirestore(docs.first);
+    final koDocs = snapshot.docs
+        .map(Quote.fromFirestore)
+        .where((q) => q.language == 'ko')
+        .toList()
+      ..shuffle();
+
+    if (koDocs.isEmpty) {
+      throw Exception('한국어 명언 데이터가 없습니다. Firestore 시드 데이터를 확인하세요.');
+    }
+    return koDocs.first;
   }
 
   /// 키워드 검색 (클라이언트 사이드 필터링)
@@ -49,8 +57,9 @@ class QuoteRepository {
     final all = snapshot.docs
         .map(Quote.fromFirestore)
         .where((q) =>
-            q.content.toLowerCase().contains(normalized) ||
-            q.author.toLowerCase().contains(normalized))
+            q.language == 'ko' &&
+            (q.content.toLowerCase().contains(normalized) ||
+             q.author.toLowerCase().contains(normalized)))
         .toList();
 
     final page = all.skip(offset).take(limit).toList();
@@ -79,7 +88,10 @@ class QuoteRepository {
         .limit(100)
         .get();
 
-    final all = snapshot.docs.map(Quote.fromFirestore).toList();
+    final all = snapshot.docs
+        .map(Quote.fromFirestore)
+        .where((q) => q.language == 'ko')
+        .toList();
     final page = all.skip(offset).take(limit).toList();
     return QuotePage(
       quotes: page,
