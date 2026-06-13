@@ -163,6 +163,18 @@ class SearchNotifier extends Notifier<SearchState> {
     }
   }
 
+  /// 검색 초기화 (취소 버튼)
+  void clearSearch() {
+    state = state.copyWith(
+      keyword: '',
+      emotionInput: '',
+      selectedTags: [],
+      results: const AsyncValue.data([]),
+      hasMore: false,
+      nextOffset: 0,
+    );
+  }
+
   /// 다음 페이지 로드 (무한 스크롤)
   Future<void> loadMore() async {
     if (!state.hasMore) return;
