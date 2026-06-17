@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ---------------------------------------------------------------------------
@@ -76,10 +77,13 @@ ThemeData buildThemeData(ThemeState themeState) {
   final brightness =
       themeState.isDark ? Brightness.dark : Brightness.light;
 
-  return ThemeData(
+  final base = ThemeData(
     useMaterial3: true,
     colorSchemeSeed: seed,
     brightness: brightness,
-    fontFamily: 'NotoSansKR', // assets/fonts가 없으면 기본 폰트로 폴백됨
+  );
+
+  return base.copyWith(
+    textTheme: GoogleFonts.notoSansKrTextTheme(base.textTheme),
   );
 }

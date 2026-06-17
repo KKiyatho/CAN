@@ -37,6 +37,7 @@ dependencies:
   # Firebase
   firebase_core: ^3.6.0
   cloud_firestore: ^5.4.3
+  firebase_auth: ^5.3.1
 
   # 로컬 저장 (북마크, 최근 검색어, 테마 설정)
   shared_preferences: ^2.3.5
@@ -44,8 +45,15 @@ dependencies:
   # 공유 기능
   share_plus: ^10.1.4
 
-  # UUID 생성 (device_id)
-  uuid: ^4.5.1
+  # 폰트
+  google_fonts: ^6.2.1
+
+  # 알람
+  timezone: ^0.10.0
+  flutter_timezone: ^2.1.0
+  flutter_local_notifications: 18.0.1
+  permission_handler: 11.3.1
+  gal: 2.3.0
 
 dev_dependencies:
   flutter_test:

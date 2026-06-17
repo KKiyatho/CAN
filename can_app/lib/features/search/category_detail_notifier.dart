@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,7 +16,7 @@ class CategoryDetailState {
   final bool isLoading;
   final bool isLoadingMore;
   final bool hasMore;
-  final int nextOffset;   // 다음 페이지 offset
+  final DocumentSnapshot? lastDoc; // cursor 기반 페이지네이션
   final String? error;
 
   const CategoryDetailState({
@@ -23,7 +24,7 @@ class CategoryDetailState {
     this.isLoading = false,
     this.isLoadingMore = false,
     this.hasMore = true,
-    this.nextOffset = 0,
+    this.lastDoc,
     this.error,
   });
 
@@ -32,7 +33,8 @@ class CategoryDetailState {
     bool? isLoading,
     bool? isLoadingMore,
     bool? hasMore,
-    int? nextOffset,
+    DocumentSnapshot? lastDoc,
+    bool setLastDoc = false,
     String? error,
     bool clearError = false,
   }) =>
@@ -41,14 +43,14 @@ class CategoryDetailState {
         isLoading: isLoading ?? this.isLoading,
         isLoadingMore: isLoadingMore ?? this.isLoadingMore,
         hasMore: hasMore ?? this.hasMore,
-        nextOffset: nextOffset ?? this.nextOffset,
+        lastDoc: setLastDoc ? lastDoc : this.lastDoc,
         error: clearError ? null : error ?? this.error,
       );
 }
 
 // ---------------------------------------------------------------------------
 // CategoryDetailNotifier — tag 별로 독립 상태 (autoDispose.family)
-// 기존에 작동이 확인된 searchByTags() 방식을 재사용한다.
+// fetchByTagPaginated() cursor 방식 사용 (startAfterDocument)
 // ---------------------------------------------------------------------------
 class CategoryDetailNotifier
     extends AutoDisposeFamilyNotifier<CategoryDetailState, String> {
@@ -56,9 +58,7 @@ class CategoryDetailNotifier
 
   @override
   CategoryDetailState build(String tag) {
-    // autoDispose 중에도 진행 중인 fetch가 유효하게 유지되도록 keepAlive 설정
     final link = ref.keepAlive();
-    // 첫 페이지 로딩 완료 후 keepAlive 해제
     Future.microtask(() async {
       await _loadInitial(tag);
       link.close();
@@ -68,7 +68,6 @@ class CategoryDetailNotifier
 
   // ── 첫 페이지 로딩 ─────────────────────────────────────────────────────
   Future<void> _loadInitial(String tag) async {
-    // ref 사용 전에 미리 읽어둔다 (await 이후 ref 접근 방지)
     final repo = ref.read(quoteRepositoryProvider);
 
     // 1. 로컬 캐시 먼저 표시 (빠른 첫 렌더링)
@@ -82,26 +81,22 @@ class CategoryDetailNotifier
       );
     }
 
-    // 2. Firestore에서 최신 첫 페이지 가져오기
-    // searchByTags는 기존 검색 탭에서도 사용하는 검증된 메서드
+    // 2. Firestore에서 최신 첫 페이지 가져오기 (cursor 없이)
     try {
-      final page = await repo.searchByTags(
-        [tag],
-        offset: 0,
-        limit: _pageSize,
-      );
+      final result = await repo.fetchByTagPaginated(tag, limit: _pageSize);
 
-      await _saveCache(tag, page.quotes);
+      await _saveCache(tag, result.quotes);
 
       state = state.copyWith(
-        quotes: page.quotes,
+        quotes: result.quotes,
         isLoading: false,
-        hasMore: page.hasMore,
-        nextOffset: page.nextOffset,
+        hasMore: result.hasMore,
+        lastDoc: result.lastDoc,
+        setLastDoc: true,
         clearError: true,
       );
     } catch (e, st) {
-      debugPrint('[CategoryDetail] 로딩 실패 (tag=$tag): $e\n$st');
+      if (kDebugMode) debugPrint('[CategoryDetail] 로딩 실패 (tag=$tag): $e\n$st');
       state = state.copyWith(
         isLoading: false,
         error: state.quotes.isEmpty
@@ -119,21 +114,22 @@ class CategoryDetailNotifier
 
     final repo = ref.read(quoteRepositoryProvider);
     try {
-      final page = await repo.searchByTags(
-        [arg],
-        offset: state.nextOffset,
+      final result = await repo.fetchByTagPaginated(
+        arg,
+        lastDoc: state.lastDoc,
         limit: _pageSize,
       );
 
       state = state.copyWith(
-        quotes: [...state.quotes, ...page.quotes],
+        quotes: [...state.quotes, ...result.quotes],
         isLoadingMore: false,
-        hasMore: page.hasMore,
-        nextOffset: page.nextOffset,
+        hasMore: result.hasMore,
+        lastDoc: result.lastDoc,
+        setLastDoc: true,
         clearError: true,
       );
     } catch (e) {
-      debugPrint('[CategoryDetail] loadMore 실패: $e');
+      if (kDebugMode) debugPrint('[CategoryDetail] loadMore 실패: $e');
       state = state.copyWith(isLoadingMore: false);
     }
   }

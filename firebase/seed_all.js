@@ -10,14 +10,40 @@
  * 기타 옵션:
  *   --min-pop 0.005   인기도 0.005 이상만 (~5,000개, 하루에 완료)
  *   --limit 1000      처음 1000개만 테스트
+ *
+ * ⚠️  보안: serviceAccountKey.json 은 .gitignore 에 등록되어 있으므로
+ *     절대 git 저장소에 커밋하지 마세요.
+ *     환경변수 GOOGLE_APPLICATION_CREDENTIALS 를 사용하는 방법도 지원합니다:
+ *       export GOOGLE_APPLICATION_CREDENTIALS=/path/to/serviceAccountKey.json
+ *       node seed_all.js ...
  */
 
-const { initializeApp, cert } = require('firebase-admin/app');
+const { initializeApp, cert, applicationDefault } = require('firebase-admin/app');
 const { getFirestore, Timestamp } = require('firebase-admin/firestore');
+const fs = require('fs');
 const path = require('path');
 
-const serviceAccount = require('./serviceAccountKey.json');
-initializeApp({ credential: cert(serviceAccount) });
+// 자격증명 로드: 환경변수(GOOGLE_APPLICATION_CREDENTIALS) 우선,
+// 없으면 로컬 serviceAccountKey.json 폴백
+function initFirebase() {
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    initializeApp({ credential: applicationDefault() });
+    console.log('✅ 자격증명: 환경변수(GOOGLE_APPLICATION_CREDENTIALS) 사용');
+  } else {
+    const keyPath = path.join(__dirname, 'serviceAccountKey.json');
+    if (!fs.existsSync(keyPath)) {
+      console.error('❌ serviceAccountKey.json 파일이 없습니다.');
+      console.error('   firebase/ 디렉토리에 파일을 복사하거나');
+      console.error('   GOOGLE_APPLICATION_CREDENTIALS 환경변수를 설정하세요.');
+      process.exit(1);
+    }
+    const serviceAccount = require(keyPath);
+    initializeApp({ credential: cert(serviceAccount) });
+    console.log('✅ 자격증명: serviceAccountKey.json 사용 (로컬 전용)');
+  }
+}
+
+initFirebase();
 const db = getFirestore();
 
 // ── CLI 인수 파싱 ─────────────────────────────────────────────────────────────

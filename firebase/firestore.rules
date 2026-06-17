@@ -1,10 +1,64 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // quotes 컬렉션: 누구나 읽기 가능, 쓰기는 불가 (Admin SDK로만 가능)
+
+    // ── quotes: 누구나 읽기, 쓰기는 Admin SDK 전용 ──────────────────────
     match /quotes/{quoteId} {
       allow read: if true;
       allow write: if false;
+    }
+
+    // ── community_posts ──────────────────────────────────────────────────
+    match /community_posts/{postId} {
+      // 읽기: 인증된 사용자만 (Anonymous 포함)
+      allow read: if request.auth != null;
+
+      // 글 작성:
+      //   1) 로그인 필수
+      //   2) userId 필드 = 자신의 UID (위조 방지)
+      //   3) likeCount 는 반드시 0 으로 시작 (초기값 조작 방지)
+      //   4) content 길이: 1~300자 (빈 글 / 스팸 방지)
+      //   5) 허용 필드만 존재해야 함 (추가 필드 인젝션 방지)
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.likeCount == 0
+                    && request.resource.data.content is string
+                    && request.resource.data.content.size() >= 1
+                    && request.resource.data.content.size() <= 300
+                    && request.resource.data.keys()
+                         .hasOnly(['userId', 'quoteId', 'content', 'likeCount', 'createdAt']);
+
+      // 글 수정: likeCount 단 한 필드만 ±1 범위 내 변경만 허용
+      //   - 클라이언트가 likeCount 를 임의 값으로 직접 설정하지 못하도록 제한
+      allow update: if request.auth != null
+                    && request.resource.data.diff(resource.data)
+                         .affectedKeys().hasOnly(['likeCount'])
+                    && (request.resource.data.likeCount == resource.data.likeCount + 1
+                        || request.resource.data.likeCount == resource.data.likeCount - 1);
+
+      // 글 삭제: 본인만 가능
+      allow delete: if request.auth != null
+                    && resource.data.userId == request.auth.uid;
+
+      // ── post_likes 서브컬렉션 ─────────────────────────────────────────
+      match /post_likes/{likeUserId} {
+        // 읽기: 로그인한 사용자만
+        allow read: if request.auth != null;
+
+        // 좋아요 추가/수정: 반드시 본인 UID 문서에만 가능
+        //   허용 필드: userId, createdAt 만 (추가 필드 방지)
+        allow create: if request.auth != null
+                      && request.auth.uid == likeUserId
+                      && request.resource.data.userId == request.auth.uid
+                      && request.resource.data.keys().hasOnly(['userId', 'createdAt']);
+
+        // 좋아요 취소: 본인 문서만 삭제 가능
+        allow delete: if request.auth != null
+                      && request.auth.uid == likeUserId;
+
+        // update 는 불필요하므로 명시적으로 거부
+        allow update: if false;
+      }
     }
   }
 }

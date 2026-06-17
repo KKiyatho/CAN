@@ -1,7 +1,8 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
 import '../../core/firebase/firebase_providers.dart';
 import '../../shared/models/quote.dart';
 
@@ -134,7 +135,8 @@ class QuoteRepository {
     return TagPageResult(
       quotes: quotes,
       lastDoc: docs.isNotEmpty ? docs.last : null,
-      hasMore: docs.length >= limit,
+      // Firestore 가 limit*2 개를 반환했으면 더 있을 수 있음
+      hasMore: docs.length >= limit * 2,
     );
   }
 }
@@ -191,10 +193,22 @@ class BookmarkRepository {
     final prefs = await SharedPreferences.getInstance();
     String? id = prefs.getString(_kDeviceIdKey);
     if (id == null) {
-      id = const Uuid().v4();
+      id = _generateId();
       await prefs.setString(_kDeviceIdKey, id);
     }
     return id;
+  }
+
+  static String _generateId() {
+    final rand = Random.secure();
+    final bytes = List<int>.generate(16, (_) => rand.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
+    final hex =
+        bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}'
+        '-${hex.substring(12, 16)}-${hex.substring(16, 20)}'
+        '-${hex.substring(20, 32)}';
   }
 }
 

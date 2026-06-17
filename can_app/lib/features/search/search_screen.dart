@@ -10,15 +10,13 @@ import 'search_notifier.dart';
 // ---------------------------------------------------------------------------
 class _Category {
   final String label;
-  final String tag;       // Firestore 태그 or 키워드
-  final bool isKeyword;   // true → searchByKeyword, false → searchByTag
+  final String tag;
   final List<Color> gradient;
-  final String imageUrl;  // Unsplash 이미지 URL
+  final String imageUrl;
 
   const _Category({
     required this.label,
     required this.tag,
-    this.isKeyword = false,
     required this.gradient,
     required this.imageUrl,
   });

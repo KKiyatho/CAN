@@ -1,0 +1,37 @@
+# ── Firebase 자격증명 (절대 커밋 금지) ────────────────────────────────────
+firebase/serviceAccountKey.json
+**/serviceAccountKey*.json
+**/google-services.json
+can_app/ios/Runner/GoogleService-Info.plist
+can_app/lib/firebase_options.dart
+
+# ── Firebase emulator 캐시 ────────────────────────────────────────────────
+.firebase/
+firebase/.firebaserc
+
+# ── Flutter / Dart ────────────────────────────────────────────────────────
+can_app/.dart_tool/
+can_app/.flutter-plugins
+can_app/.flutter-plugins-dependencies
+can_app/build/
+can_app/pubspec.lock
+can_app/.packages
+
+# ── IDE / 편집기 ──────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# ── Node.js (firebase/ 시드 스크립트) ────────────────────────────────────
+firebase/node_modules/
+firebase/package-lock.json
+
+# ── 환경변수 / 비밀키 ──────────────────────────────────────────────────────
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx

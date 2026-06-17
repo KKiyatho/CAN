@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  네트워크 보안 설정
+  - cleartext (HTTP) 트래픽 전면 차단 (HTTPS만 허용)
+  - Firebase / Firestore / Google Fonts 모두 HTTPS 사용하므로 추가 예외 불필요
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- 시스템 CA 인증서만 신뢰 (사용자 설치 CA 불신) -->
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>

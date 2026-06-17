@@ -7,11 +7,22 @@
  * 주의: 기존 seed_data.js(v1)와 중복되지 않는 명언만 포함합니다.
  */
 
-const { initializeApp, cert } = require('firebase-admin/app');
+const { initializeApp, cert, applicationDefault } = require('firebase-admin/app');
 const { getFirestore, Timestamp } = require('firebase-admin/firestore');
-const serviceAccount = require('./serviceAccountKey.json');
+const fs = require('fs');
+const path = require('path');
 
-initializeApp({ credential: cert(serviceAccount) });
+if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  initializeApp({ credential: applicationDefault() });
+} else {
+  const keyPath = path.join(__dirname, 'serviceAccountKey.json');
+  if (!fs.existsSync(keyPath)) {
+    console.error('❌ serviceAccountKey.json 파일이 없습니다. GOOGLE_APPLICATION_CREDENTIALS 환경변수를 설정하거나 파일을 복사하세요.');
+    process.exit(1);
+  }
+  initializeApp({ credential: cert(require(keyPath)) });
+}
+
 const db = getFirestore();
 
 const quotes = [

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/home/home_screen.dart';
 import '../features/search/search_screen.dart';
-import '../shared/widgets/placeholder_screen.dart';
+import '../features/community/community_screen.dart';
+import '../features/alarm/alarm_screen.dart';
+import '../features/wallpaper/wallpaper_screen.dart';
 
 // 현재 선택된 탭 인덱스
 final _tabIndexProvider = StateProvider<int>((_) => 0);
@@ -41,9 +43,9 @@ class AppShell extends ConsumerWidget {
         children: const [
           HomeScreen(),
           SearchScreen(),
-          PlaceholderScreen(title: '커뮤니티', icon: Icons.people_outline),
-          PlaceholderScreen(title: '알람', icon: Icons.alarm_outlined),
-          PlaceholderScreen(title: '배경화면', icon: Icons.wallpaper_outlined),
+          CommunityScreen(),
+          AlarmScreen(),
+          WallpaperScreen(),
         ],
       ),
       bottomNavigationBar: NavigationBar(

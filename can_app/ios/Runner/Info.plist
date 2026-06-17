@@ -45,5 +45,14 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- gal: 갤러리 접근 권한 -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>배경화면 이미지를 기기에 저장하기 위해 사용됩니다.</string>
+	<!-- flutter_local_notifications: 알림 권한 -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>
