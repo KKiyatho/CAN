@@ -50,16 +50,31 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   }
 
   Future<void> _openCreatePost() async {
-    final userId = ref.read(currentUserIdProvider);
-    if (userId == null) return;
+    // userId가 없으면 익명 로그인 재시도
+    String? userId = ref.read(currentUserIdProvider);
+    if (userId == null) {
+      try {
+        final auth = ref.read(firebaseAuthProvider);
+        final user = await signInAnonymouslyIfNeeded(auth);
+        userId = user?.uid;
+      } catch (_) {}
+    }
 
+    if (userId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('인증 중입니다. 잠시 후 다시 시도해 주세요.')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => PostCreateScreen(userId: userId),
+        builder: (_) => PostCreateScreen(userId: userId!),
         fullscreenDialog: true,
       ),
     );
-    // 작성 후 피드 새로고침
     ref.read(communityNotifierProvider.notifier).refresh();
   }
 
@@ -80,6 +95,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'community_fab',
         onPressed: _openCreatePost,
         child: const Icon(Icons.edit_outlined),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/theme_notifier.dart';
 import '../../shared/models/quote.dart';
 import 'quote_repository.dart';
 
@@ -8,21 +9,26 @@ import 'quote_repository.dart';
 class HomeState {
   final AsyncValue<Quote> quote;
   final Set<String> bookmarkedIds;
+  final Set<String> likedIds;
 
   const HomeState({
     required this.quote,
     required this.bookmarkedIds,
+    this.likedIds = const {},
   });
 
   bool isBookmarked(String id) => bookmarkedIds.contains(id);
+  bool isLiked(String id) => likedIds.contains(id);
 
   HomeState copyWith({
     AsyncValue<Quote>? quote,
     Set<String>? bookmarkedIds,
+    Set<String>? likedIds,
   }) =>
       HomeState(
         quote: quote ?? this.quote,
         bookmarkedIds: bookmarkedIds ?? this.bookmarkedIds,
+        likedIds: likedIds ?? this.likedIds,
       );
 }
 
@@ -32,21 +38,31 @@ class HomeState {
 class HomeNotifier extends Notifier<HomeState> {
   @override
   HomeState build() {
-    // 초기화: 명언 로드 + 북마크 목록 로드
+    // 초기화: 명언 로드 + 북마크 + 좋아요 로드
     _init();
     return const HomeState(
       quote: AsyncValue.loading(),
       bookmarkedIds: {},
+      likedIds: {},
     );
   }
 
   QuoteRepository get _repo => ref.read(quoteRepositoryProvider);
   BookmarkRepository get _bookmarkRepo => ref.read(bookmarkRepositoryProvider);
+  LikeRepository get _likeRepo => ref.read(likeRepositoryProvider);
+
+  String get _language => ref.read(themeNotifierProvider).languageCode;
 
   Future<void> _init() async {
-    // 북마크 먼저 로드
-    final ids = await _bookmarkRepo.loadBookmarks();
-    state = state.copyWith(bookmarkedIds: ids);
+    // 북마크 + 좋아요 동시 로드
+    final results = await Future.wait([
+      _bookmarkRepo.loadBookmarks(),
+      _likeRepo.loadLikes(),
+    ]);
+    state = state.copyWith(
+      bookmarkedIds: results[0],
+      likedIds: results[1],
+    );
     // 명언 로드
     await loadQuote();
   }
@@ -55,7 +71,7 @@ class HomeNotifier extends Notifier<HomeState> {
   Future<void> loadQuote() async {
     state = state.copyWith(quote: const AsyncValue.loading());
     try {
-      final quote = await _repo.fetchFeaturedQuote();
+      final quote = await _repo.fetchFeaturedQuote(language: _language);
       state = state.copyWith(quote: AsyncValue.data(quote));
     } catch (e, st) {
       state = state.copyWith(quote: AsyncValue.error(e, st));
@@ -73,6 +89,19 @@ class HomeNotifier extends Notifier<HomeState> {
       await _bookmarkRepo.addBookmark(quoteId);
     }
     state = state.copyWith(bookmarkedIds: current);
+  }
+
+  /// 좋아요 토글 (낙관적 업데이트)
+  Future<void> toggleLike(String quoteId) async {
+    final current = Set<String>.from(state.likedIds);
+    if (current.contains(quoteId)) {
+      current.remove(quoteId);
+      await _likeRepo.removeLike(quoteId);
+    } else {
+      current.add(quoteId);
+      await _likeRepo.addLike(quoteId);
+    }
+    state = state.copyWith(likedIds: current);
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart' show Share;
 import '../../core/theme/theme_notifier.dart';
 import '../../shared/widgets/quote_card.dart';
 import '../../shared/widgets/state_views.dart';
+import '../search/search_notifier.dart';
 import 'home_notifier.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -31,6 +32,12 @@ class HomeScreen extends ConsumerWidget {
             ),
             onPressed: () =>
                 ref.read(themeNotifierProvider.notifier).toggleDarkMode(),
+          ),
+          // 언어 선택
+          IconButton(
+            tooltip: '언어 선택',
+            icon: const Icon(Icons.translate),
+            onPressed: () => _showLanguagePicker(context, ref, themeState),
           ),
           // 테마 색상 선택
           Padding(
@@ -60,6 +67,8 @@ class HomeScreen extends ConsumerWidget {
               ref.read(homeNotifierProvider.notifier).loadQuote(),
           onBookmark: () =>
               ref.read(homeNotifierProvider.notifier).toggleBookmark(quote.id),
+          onLike: () =>
+              ref.read(homeNotifierProvider.notifier).toggleLike(quote.id),
           onShare: () => Share.share(quote.shareText),
         ),
       ),
@@ -127,6 +136,50 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+
+  void _showLanguagePicker(
+      BuildContext context, WidgetRef ref, ThemeState themeState) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('명언 언어',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    )),
+            const SizedBox(height: 16),
+            ...kLanguageOptions.map((opt) {
+              final isSelected = themeState.languageCode == opt.code;
+              return ListTile(
+                title: Text(opt.label),
+                trailing: isSelected
+                    ? Icon(Icons.check,
+                        color: Theme.of(context).colorScheme.primary)
+                    : null,
+                onTap: () async {
+                  await ref
+                      .read(themeNotifierProvider.notifier)
+                      .setLanguage(opt.code);
+                  // 언어 변경 후 명언 새로 로드 + 검색 결과 초기화
+                  ref.read(homeNotifierProvider.notifier).loadQuote();
+                  ref.read(searchNotifierProvider.notifier).clearSearch();
+                  if (context.mounted) Navigator.pop(context);
+                },
+              );
+            }),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -136,12 +189,14 @@ class _QuoteBody extends ConsumerWidget {
   final HomeState quote;
   final VoidCallback onRefresh;
   final VoidCallback onBookmark;
+  final VoidCallback onLike;
   final VoidCallback onShare;
 
   const _QuoteBody({
     required this.quote,
     required this.onRefresh,
     required this.onBookmark,
+    required this.onLike,
     required this.onShare,
   });
 
@@ -149,6 +204,7 @@ class _QuoteBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final q = quote.quote.value!;
     final isBookmarked = quote.isBookmarked(q.id);
+    final isLiked = quote.isLiked(q.id);
     final colorScheme = Theme.of(context).colorScheme;
 
     return SafeArea(
@@ -168,6 +224,15 @@ class _QuoteBody extends ConsumerWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
+                  // 좋아요
+                  _ActionButton(
+                    icon: isLiked
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                    label: '좋아요',
+                    color: isLiked ? Colors.redAccent : null,
+                    onTap: onLike,
+                  ),
                   // 북마크
                   _ActionButton(
                     icon: isBookmarked

@@ -111,6 +111,7 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
+  final _emotionController = TextEditingController(); // 감정 입력창
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
   bool _isSearching = false;
@@ -132,6 +133,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _emotionController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -139,9 +141,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   void _clear() {
     _controller.clear();
+    _emotionController.clear();
     _focusNode.unfocus();
     setState(() => _isSearching = false);
     ref.read(searchNotifierProvider.notifier).clearSearch();
+  }
+
+  void _submitEmotion(String v) {
+    if (v.trim().isEmpty) return;
+    FocusScope.of(context).unfocus();
+    setState(() => _isSearching = false);
+    ref.read(searchNotifierProvider.notifier).searchByEmotion(v);
   }
 
   void _submit(String v) {
@@ -173,6 +183,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final colorScheme = theme.colorScheme;
     final showResults = state.keyword.isNotEmpty ||
         state.selectedTags.isNotEmpty ||
+        state.emotionInput.isNotEmpty ||
         _isSearching;
 
     return Scaffold(
@@ -251,8 +262,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       scrollController: _scrollController,
                       onRetry: () =>
                           ref.read(searchNotifierProvider.notifier)
-                              .searchByKeyword(_controller.text),
-                      recentSearches: state.recentSearches,
+                              .searchByKeyword(_controller.text),                      onClear: _clear,                      recentSearches: state.recentSearches,
                       onRecentTap: (s) {
                         _controller.text = s;
                         _submit(s);
@@ -261,7 +271,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           .read(searchNotifierProvider.notifier)
                           .removeRecentSearch(s),
                     )
-                  : _CategoryGrid(onTap: _selectCategory),
+                  : _CategoryGrid(
+                      onTap: _selectCategory,
+                      emotionController: _emotionController,
+                      onEmotionSubmit: _submitEmotion,
+                      onTagTap: (tag) => ref
+                          .read(searchNotifierProvider.notifier)
+                          .searchByTag(tag),
+                    ),
             ),
           ],
         ),
@@ -271,31 +288,118 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// 카테고리 그리드
+// 카테고리 그리드 (감정 입력 섹션 포함)
 // ---------------------------------------------------------------------------
 class _CategoryGrid extends StatelessWidget {
   final void Function(_Category) onTap;
+  final TextEditingController emotionController;
+  final void Function(String) onEmotionSubmit;
+  final void Function(String) onTagTap;
 
-  const _CategoryGrid({required this.onTap});
+  const _CategoryGrid({
+    required this.onTap,
+    required this.emotionController,
+    required this.onEmotionSubmit,
+    required this.onTagTap,
+  });
+
+  // 빠른 선택용 감정 칩 (TagExtractor 키 중 대표 6개)
+  static const _quickEmotions = [
+    ('😰', '불안'),
+    ('😩', '지침'),
+    ('💼', '면접'),
+    ('❤️', '사랑'),
+    ('😊', '행복'),
+    ('📚', '자기계발'),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return CustomScrollView(
       slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          sliver: SliverToBoxAdapter(
-            child: Text(
-              '카테고리 둘러보기',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+        // ── 감정/상황 입력 섹션 ────────────────────────────────────────
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '지금 어떤 기분이에요? 💭',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // 감정 입력창
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: emotionController,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: onEmotionSubmit,
+                        decoration: InputDecoration(
+                          hintText: '감정이나 상황을 적어보세요 (예: 지치고 힘들어)',
+                          prefixIcon:
+                              const Icon(Icons.mood_outlined, size: 20),
+                          filled: true,
+                          fillColor: cs.surfaceContainerHighest,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: () =>
+                          onEmotionSubmit(emotionController.text),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text('추천'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // 빠른 감정 칩
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: _quickEmotions
+                      .map((e) => ActionChip(
+                            avatar: Text(e.$1,
+                                style: const TextStyle(fontSize: 14)),
+                            label: Text(e.$2),
+                            onPressed: () => onTagTap(e.$2),
+                          ))
+                      .toList(),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  '카테고리 둘러보기',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
+        // ── 카테고리 그리드 ──────────────────────────────────────────────
         SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
           sliver: SliverGrid(
             delegate: SliverChildBuilderDelegate(
               (context, i) => _CategoryCard(
@@ -414,6 +518,7 @@ class _ResultsView extends StatelessWidget {
   final SearchState state;
   final ScrollController scrollController;
   final VoidCallback onRetry;
+  final VoidCallback onClear; // 처음으로 돌아가기
   final List<String> recentSearches;
   final void Function(String) onRecentTap;
   final void Function(String) onRecentDelete;
@@ -422,6 +527,7 @@ class _ResultsView extends StatelessWidget {
     required this.state,
     required this.scrollController,
     required this.onRetry,
+    required this.onClear,
     required this.recentSearches,
     required this.onRecentTap,
     required this.onRecentDelete,
@@ -437,56 +543,127 @@ class _ResultsView extends StatelessWidget {
       error: (e, _) =>
           ErrorView(message: '검색 중 오류가 발생했습니다.', onRetry: onRetry),
       data: (quotes) {
-        // 아직 검색 전 → 최근 검색어
-        if (quotes.isEmpty &&
+        // 검색 전 상태 (아직 키워드/태그 없음)
+        final isIdle = quotes.isEmpty &&
             state.keyword.isEmpty &&
-            state.selectedTags.isEmpty) {
+            state.selectedTags.isEmpty &&
+            state.emotionInput.isEmpty;
+
+        // 상단 "처음으로" 버튼 (검색 결과 표시 중에 항상 노출)
+        final backBar = Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+          child: TextButton.icon(
+            onPressed: onClear,
+            icon: const Icon(Icons.arrow_back_ios, size: 14),
+            label: const Text('처음으로'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            ),
+          ),
+        );
+
+        if (isIdle) {
           if (recentSearches.isEmpty) {
-            return const EmptyView(message: '검색어나 카테고리를 선택해 보세요.');
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                backBar,
+                const Expanded(child: EmptyView(message: '검색어나 카테고리를 선택해 보세요.')),
+              ],
+            );
           }
-          return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('최근 검색',
-                  style: theme.textTheme.labelMedium
-                      ?.copyWith(color: colorScheme.outline)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: recentSearches
-                    .map((s) => InputChip(
-                          label: Text(s),
-                          deleteIcon: const Icon(Icons.close, size: 14),
-                          onDeleted: () => onRecentDelete(s),
-                          onPressed: () => onRecentTap(s),
-                        ))
-                    .toList(),
+              backBar,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Text('최근 검색',
+                    style: theme.textTheme.labelMedium
+                        ?.copyWith(color: colorScheme.outline)),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: recentSearches
+                          .map((s) => InputChip(
+                                label: Text(s),
+                                deleteIcon: const Icon(Icons.close, size: 14),
+                                onDeleted: () => onRecentDelete(s),
+                                onPressed: () => onRecentTap(s),
+                              ))
+                          .toList(),
+                    ),
+                  ],
+                ),
               ),
             ],
           );
         }
 
         if (quotes.isEmpty) {
-          return const EmptyView(message: '관련 명언을 찾지 못했습니다.\n다른 키워드를 입력해 보세요.');
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              backBar,
+              const Expanded(
+                child: EmptyView(message: '관련 명언을 찾지 못했습니다.\n다른 키워드를 입력해 보세요.'),
+              ),
+            ],
+          );
         }
 
-        return ListView.builder(
-          controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          itemCount: quotes.length + (state.hasMore ? 1 : 0),
-          itemBuilder: (_, i) {
-            if (i == quotes.length) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: QuoteCard(quote: quotes[i]),
-            );
-          },
+        // 감정 입력 결과 헤더
+        final hasEmotionHeader = state.emotionInput.isNotEmpty;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            backBar,
+            if (hasEmotionHeader)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.auto_awesome, size: 15),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '"${state.emotionInput}"에 어울리는 명언',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: ListView.builder(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                itemCount: quotes.length + (state.hasMore ? 1 : 0),
+                itemBuilder: (_, i) {
+                  if (i == quotes.length) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: QuoteCard(quote: quotes[i]),
+                  );
+                },
+              ),
+            ),
+          ],
         );
       },
     );

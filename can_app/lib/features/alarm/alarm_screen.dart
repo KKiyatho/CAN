@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -24,6 +25,7 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
   }
 
   Future<void> _requestPermission() async {
+    if (kIsWeb) return; // 웹은 권한 요청 불필요
     await Permission.notification.request();
   }
 
@@ -61,6 +63,7 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
         centerTitle: false,
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'alarm_fab',
         onPressed: _showCreateSheet,
         child: const Icon(Icons.add_alarm_outlined),
       ),
@@ -216,6 +219,10 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
   late List<bool> _repeatDays;
   late TextEditingController _phraseController;
 
+  // 휠 스크롤 컨트롤러
+  late FixedExtentScrollController _hourController;
+  late FixedExtentScrollController _minuteController;
+
   @override
   void initState() {
     super.initState();
@@ -227,25 +234,16 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
     _phraseController = TextEditingController(
       text: widget.existing?.unlockPhrase ?? '나는 할 수 있다',
     );
+    _hourController = FixedExtentScrollController(initialItem: _hour);
+    _minuteController = FixedExtentScrollController(initialItem: _minute);
   }
 
   @override
   void dispose() {
     _phraseController.dispose();
+    _hourController.dispose();
+    _minuteController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay(hour: _hour, minute: _minute),
-    );
-    if (picked != null) {
-      setState(() {
-        _hour = picked.hour;
-        _minute = picked.minute;
-      });
-    }
   }
 
   Future<void> _save() async {
@@ -277,8 +275,6 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final timeLabel =
-        '${_hour.toString().padLeft(2, '0')}:${_minute.toString().padLeft(2, '0')}';
 
     return Padding(
       padding: EdgeInsets.only(
@@ -303,23 +299,102 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
             ),
           ),
           const SizedBox(height: 20),
-          // ── 시간 선택 ────────────────────────────────────────────────────
-          Center(
-            child: GestureDetector(
-              onTap: _pickTime,
-              child: Text(
-                timeLabel,
-                style: textTheme.displayMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: cs.primary,
+          // ── 휠 시간 선택기 ───────────────────────────────────────────────
+          Text('시간 설정', style: textTheme.labelMedium),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 160,
+            child: Row(
+              children: [
+                // 시간 휠 (0~23)
+                Expanded(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // 선택 영역 하이라이트
+                      Container(
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: cs.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      ListWheelScrollView.useDelegate(
+                        controller: _hourController,
+                        itemExtent: 44,
+                        diameterRatio: 1.8,
+                        perspective: 0.003,
+                        physics: const FixedExtentScrollPhysics(),
+                        onSelectedItemChanged: (i) =>
+                            setState(() => _hour = i),
+                        childDelegate: ListWheelChildBuilderDelegate(
+                          builder: (_, i) => Center(
+                            child: Text(
+                              i.toString().padLeft(2, '0'),
+                              style: textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: _hour == i
+                                    ? cs.primary
+                                    : cs.onSurface.withValues(alpha: 0.4),
+                              ),
+                            ),
+                          ),
+                          childCount: 24,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          ),
-          Center(
-            child: TextButton(
-              onPressed: _pickTime,
-              child: const Text('시간 변경'),
+                // 구분자
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    ':',
+                    style: textTheme.headlineLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: cs.primary,
+                    ),
+                  ),
+                ),
+                // 분 휠 (0~59)
+                Expanded(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: cs.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      ListWheelScrollView.useDelegate(
+                        controller: _minuteController,
+                        itemExtent: 44,
+                        diameterRatio: 1.8,
+                        perspective: 0.003,
+                        physics: const FixedExtentScrollPhysics(),
+                        onSelectedItemChanged: (i) =>
+                            setState(() => _minute = i),
+                        childDelegate: ListWheelChildBuilderDelegate(
+                          builder: (_, i) => Center(
+                            child: Text(
+                              i.toString().padLeft(2, '0'),
+                              style: textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: _minute == i
+                                    ? cs.primary
+                                    : cs.onSurface.withValues(alpha: 0.4),
+                              ),
+                            ),
+                          ),
+                          childCount: 60,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),

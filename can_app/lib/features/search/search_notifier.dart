@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/theme/theme_notifier.dart';
 import '../../shared/models/quote.dart';
 import '../home/quote_repository.dart';
 import 'tag_extractor.dart';
@@ -59,6 +60,7 @@ class SearchNotifier extends Notifier<SearchState> {
   }
 
   QuoteRepository get _repo => ref.read(quoteRepositoryProvider);
+  String get _language => ref.read(themeNotifierProvider).languageCode;
 
   Future<void> _loadRecentSearches() async {
     final prefs = await SharedPreferences.getInstance();
@@ -101,7 +103,7 @@ class SearchNotifier extends Notifier<SearchState> {
     );
     await _saveRecentSearch(keyword);
     try {
-      final page = await _repo.searchByKeyword(keyword);
+      final page = await _repo.searchByKeyword(keyword, language: _language);
       state = state.copyWith(
         results: AsyncValue.data(page.quotes),
         hasMore: page.hasMore,
@@ -130,7 +132,12 @@ class SearchNotifier extends Notifier<SearchState> {
       return;
     }
     try {
-      final page = await _repo.searchByTags(tags);
+      final page = await _repo.searchByTags(tags, language: _language);
+      if (page.quotes.isEmpty) {
+        // 태그 매칭 결과 0건 → 키워드로 재검색
+        await searchByKeyword(input);
+        return;
+      }
       state = state.copyWith(
         results: AsyncValue.data(page.quotes),
         hasMore: page.hasMore,
@@ -152,7 +159,7 @@ class SearchNotifier extends Notifier<SearchState> {
       nextOffset: 0,
     );
     try {
-      final page = await _repo.searchByTags([tag]);
+      final page = await _repo.searchByTags([tag], language: _language);
       state = state.copyWith(
         results: AsyncValue.data(page.quotes),
         hasMore: page.hasMore,
@@ -183,10 +190,10 @@ class SearchNotifier extends Notifier<SearchState> {
       QuotePage page;
       if (state.keyword.isNotEmpty) {
         page = await _repo.searchByKeyword(state.keyword,
-            offset: state.nextOffset);
+            offset: state.nextOffset, language: _language);
       } else {
         page = await _repo.searchByTags(state.selectedTags,
-            offset: state.nextOffset);
+            offset: state.nextOffset, language: _language);
       }
       state = state.copyWith(
         results: AsyncValue.data([...current, ...page.quotes]),

@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -16,8 +17,10 @@ const _kAlarmsKey = 'alarms_v1';
 // ---------------------------------------------------------------------------
 class AlarmRepository {
   AlarmRepository() {
-    _initTimezone();
-    _initNotifications();
+    if (!kIsWeb) {
+      _initTimezone();
+      _initNotifications();
+    }
   }
 
   final _plugin = FlutterLocalNotificationsPlugin();
@@ -111,6 +114,7 @@ class AlarmRepository {
       (id.hashCode.abs() % 14285) * 7 + dayIdx;
 
   Future<void> _scheduleNotification(AlarmModel alarm) async {
+    if (kIsWeb) return; // 웹은 로컬 알림 미지원
     await _initNotifications();
 
     const androidDetails = AndroidNotificationDetails(
@@ -183,6 +187,7 @@ class AlarmRepository {
   }
 
   Future<void> _cancelNotification(String id) async {
+    if (kIsWeb) return; // 웹은 로컬 알림 미지원
     await _initNotifications();
     // 단발(dayIdx=0) + 반복(dayIdx=0..6) 슬롯 전부 취소
     for (int i = 0; i < 7; i++) {

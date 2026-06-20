@@ -17,21 +17,35 @@ const List<Color> kThemeColors = [
 // SharedPreferences 키
 const _kColorIndexKey = 'theme_color_index';
 const _kDarkModeKey = 'theme_dark_mode';
+const _kLanguageCodeKey = 'theme_language_code';
+
+/// 앱에서 선택 가능한 명언 언어 목록
+const List<({String code, String label})> kLanguageOptions = [
+  (code: 'ko', label: '한국어'),
+  (code: 'en', label: 'English'),
+];
 
 // ---------------------------------------------------------------------------
-// ThemeState: 현재 테마 색상 인덱스 + 다크모드 여부
+// ThemeState: 현재 테마 색상 인덱스 + 다크모드 여부 + 언어 코드
 // ---------------------------------------------------------------------------
 class ThemeState {
   final int colorIndex;
   final bool isDark;
+  final String languageCode; // 'ko' | 'en' | 'all'
 
-  const ThemeState({required this.colorIndex, required this.isDark});
+  const ThemeState({
+    required this.colorIndex,
+    required this.isDark,
+    this.languageCode = 'ko',
+  });
 
   Color get primaryColor => kThemeColors[colorIndex];
 
-  ThemeState copyWith({int? colorIndex, bool? isDark}) => ThemeState(
+  ThemeState copyWith({int? colorIndex, bool? isDark, String? languageCode}) =>
+      ThemeState(
         colorIndex: colorIndex ?? this.colorIndex,
         isDark: isDark ?? this.isDark,
+        languageCode: languageCode ?? this.languageCode,
       );
 }
 
@@ -49,7 +63,9 @@ class ThemeNotifier extends Notifier<ThemeState> {
     final prefs = await SharedPreferences.getInstance();
     final colorIndex = prefs.getInt(_kColorIndexKey) ?? 0;
     final isDark = prefs.getBool(_kDarkModeKey) ?? false;
-    state = ThemeState(colorIndex: colorIndex, isDark: isDark);
+    final languageCode = prefs.getString(_kLanguageCodeKey) ?? 'ko';
+    state = ThemeState(
+        colorIndex: colorIndex, isDark: isDark, languageCode: languageCode);
   }
 
   Future<void> setColor(int index) async {
@@ -62,6 +78,12 @@ class ThemeNotifier extends Notifier<ThemeState> {
     state = state.copyWith(isDark: !state.isDark);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kDarkModeKey, state.isDark);
+  }
+
+  Future<void> setLanguage(String code) async {
+    state = state.copyWith(languageCode: code);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kLanguageCodeKey, code);
   }
 }
 

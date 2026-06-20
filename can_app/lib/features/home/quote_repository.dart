@@ -7,6 +7,7 @@ import '../../core/firebase/firebase_providers.dart';
 import '../../shared/models/quote.dart';
 
 const _kBookmarksKey = 'bookmarked_quote_ids';
+const _kLikesKey = 'liked_quote_ids';
 const _kDeviceIdKey = 'device_id';
 
 // ---------------------------------------------------------------------------
@@ -17,7 +18,8 @@ class QuoteRepository {
   QuoteRepository(this._db);
 
   /// 오늘의 명언: isFeatured=true 중 랜덤 1개
-  Future<Quote> fetchFeaturedQuote() async {
+  /// [language]: 'ko' | 'en' | 'all'
+  Future<Quote> fetchFeaturedQuote({String language = 'ko'}) async {
     final snapshot = await _db
         .collection('quotes')
         .where('isFeatured', isEqualTo: true)
@@ -29,16 +31,18 @@ class QuoteRepository {
           '(firebase/seed_data.js 실행 또는 Firebase 콘솔에서 직접 추가)');
     }
 
-    final koDocs = snapshot.docs
+    final filtered = snapshot.docs
         .map(Quote.fromFirestore)
-        .where((q) => q.language == 'ko')
+        .where((q) => language == 'all' || q.language == language)
         .toList()
       ..shuffle();
 
-    if (koDocs.isEmpty) {
-      throw Exception('한국어 명언 데이터가 없습니다. Firestore 시드 데이터를 확인하세요.');
+    if (filtered.isEmpty) {
+      // 선택 언어 데이터 없으면 전체에서 랜덤
+      final all = snapshot.docs.map(Quote.fromFirestore).toList()..shuffle();
+      return all.first;
     }
-    return koDocs.first;
+    return filtered.first;
   }
 
   /// 키워드 검색 (클라이언트 사이드 필터링)
@@ -47,18 +51,19 @@ class QuoteRepository {
     String keyword, {
     int offset = 0,
     int limit = 20,
+    String language = 'ko',
   }) async {
     final snapshot = await _db
         .collection('quotes')
         .orderBy('createdAt', descending: true)
-        .limit(200)
+        .limit(500)
         .get();
 
     final normalized = keyword.trim().toLowerCase();
     final all = snapshot.docs
         .map(Quote.fromFirestore)
         .where((q) =>
-            q.language == 'ko' &&
+            (language == 'all' || q.language == language) &&
             (q.content.toLowerCase().contains(normalized) ||
              q.author.toLowerCase().contains(normalized)))
         .toList();
@@ -76,6 +81,7 @@ class QuoteRepository {
     List<String> tags, {
     int offset = 0,
     int limit = 20,
+    String language = 'ko',
   }) async {
     if (tags.isEmpty) {
       return const QuotePage(quotes: [], hasMore: false, nextOffset: 0);
@@ -86,12 +92,12 @@ class QuoteRepository {
     final snapshot = await _db
         .collection('quotes')
         .where('tags', arrayContainsAny: effectiveTags)
-        .limit(100)
+        .limit(500)
         .get();
 
     final all = snapshot.docs
         .map(Quote.fromFirestore)
-        .where((q) => q.language == 'ko')
+        .where((q) => language == 'all' || q.language == language)
         .toList();
     final page = all.skip(offset).take(limit).toList();
     return QuotePage(
@@ -113,6 +119,7 @@ class QuoteRepository {
     String tag, {
     DocumentSnapshot? lastDoc,
     int limit = 20,
+    String language = 'ko',
   }) async {
     Query<Map<String, dynamic>> query = _db
         .collection('quotes')
@@ -128,7 +135,7 @@ class QuoteRepository {
 
     final quotes = docs
         .map(Quote.fromFirestore)
-        .where((q) => q.language == 'ko')
+        .where((q) => language == 'all' || q.language == language)
         .take(limit)
         .toList();
 
@@ -214,4 +221,34 @@ class BookmarkRepository {
 
 final bookmarkRepositoryProvider = Provider<BookmarkRepository>(
   (_) => BookmarkRepository(),
+);
+
+// ---------------------------------------------------------------------------
+// LikeRepository (로컬 SharedPreferences — 명언 좋아요)
+// ---------------------------------------------------------------------------
+class LikeRepository {
+  Future<Set<String>> loadLikes() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (prefs.getStringList(_kLikesKey) ?? []).toSet();
+  }
+
+  Future<void> addLike(String quoteId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_kLikesKey) ?? [];
+    if (!raw.contains(quoteId)) {
+      raw.add(quoteId);
+      await prefs.setStringList(_kLikesKey, raw);
+    }
+  }
+
+  Future<void> removeLike(String quoteId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_kLikesKey) ?? [];
+    raw.remove(quoteId);
+    await prefs.setStringList(_kLikesKey, raw);
+  }
+}
+
+final likeRepositoryProvider = Provider<LikeRepository>(
+  (_) => LikeRepository(),
 );

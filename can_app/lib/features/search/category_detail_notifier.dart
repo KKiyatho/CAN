@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/theme/theme_notifier.dart';
 import '../../shared/models/quote.dart';
 import '../home/quote_repository.dart';
 
@@ -83,7 +84,9 @@ class CategoryDetailNotifier
 
     // 2. Firestore에서 최신 첫 페이지 가져오기 (cursor 없이)
     try {
-      final result = await repo.fetchByTagPaginated(tag, limit: _pageSize);
+      final language = ref.read(themeNotifierProvider).languageCode;
+      final result = await repo.fetchByTagPaginated(tag,
+          limit: _pageSize, language: language);
 
       await _saveCache(tag, result.quotes);
 
@@ -113,11 +116,13 @@ class CategoryDetailNotifier
     state = state.copyWith(isLoadingMore: true);
 
     final repo = ref.read(quoteRepositoryProvider);
+    final language = ref.read(themeNotifierProvider).languageCode;
     try {
       final result = await repo.fetchByTagPaginated(
         arg,
         lastDoc: state.lastDoc,
         limit: _pageSize,
+        language: language,
       );
 
       state = state.copyWith(
