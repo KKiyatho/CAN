@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -104,6 +105,10 @@ ThemeData buildThemeData(ThemeState themeState) {
     colorSchemeSeed: seed,
     brightness: brightness,
   );
+
+  if (kIsWeb) {
+    return base;
+  }
 
   return base.copyWith(
     textTheme: GoogleFonts.notoSansKrTextTheme(base.textTheme),

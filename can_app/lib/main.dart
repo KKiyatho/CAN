@@ -1,6 +1,7 @@
 ﻿import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_shell.dart';
 import 'core/theme/theme_notifier.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -8,6 +9,8 @@ import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 웹에서 AssetManifest 이슈가 있을 때 google_fonts 반복 로드를 차단
+  GoogleFonts.config.allowRuntimeFetching = false;
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

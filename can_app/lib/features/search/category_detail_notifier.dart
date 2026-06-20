@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,7 +17,7 @@ class CategoryDetailState {
   final bool isLoading;
   final bool isLoadingMore;
   final bool hasMore;
-  final DocumentSnapshot? lastDoc; // cursor 기반 페이지네이션
+  final int nextOffset;
   final String? error;
 
   const CategoryDetailState({
@@ -26,7 +25,7 @@ class CategoryDetailState {
     this.isLoading = false,
     this.isLoadingMore = false,
     this.hasMore = true,
-    this.lastDoc,
+    this.nextOffset = 0,
     this.error,
   });
 
@@ -35,8 +34,7 @@ class CategoryDetailState {
     bool? isLoading,
     bool? isLoadingMore,
     bool? hasMore,
-    DocumentSnapshot? lastDoc,
-    bool setLastDoc = false,
+    int? nextOffset,
     String? error,
     bool clearError = false,
   }) =>
@@ -45,7 +43,7 @@ class CategoryDetailState {
         isLoading: isLoading ?? this.isLoading,
         isLoadingMore: isLoadingMore ?? this.isLoadingMore,
         hasMore: hasMore ?? this.hasMore,
-        lastDoc: setLastDoc ? lastDoc : this.lastDoc,
+        nextOffset: nextOffset ?? this.nextOffset,
         error: clearError ? null : error ?? this.error,
       );
 }
@@ -95,8 +93,7 @@ class CategoryDetailNotifier
         quotes: result.quotes,
         isLoading: false,
         hasMore: result.hasMore,
-        lastDoc: result.lastDoc,
-        setLastDoc: true,
+        nextOffset: result.nextOffset,
         clearError: true,
       );
     } catch (e, st) {
@@ -122,7 +119,7 @@ class CategoryDetailNotifier
     try {
       final result = await repo.fetchByTagPaginated(
         arg,
-        lastDoc: state.lastDoc,
+        offset: state.nextOffset,
         limit: _pageSize,
         language: language,
       );
@@ -131,8 +128,7 @@ class CategoryDetailNotifier
         quotes: [...state.quotes, ...result.quotes],
         isLoadingMore: false,
         hasMore: result.hasMore,
-        lastDoc: result.lastDoc,
-        setLastDoc: true,
+        nextOffset: result.nextOffset,
         clearError: true,
       );
     } catch (e) {

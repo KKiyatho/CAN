@@ -404,6 +404,40 @@ class _WallpaperCanvas extends StatelessWidget {
   final LinearGradient gradient;
   final String? bgImageUrl;
 
+  TextStyle _quoteTextStyle(Color color) {
+    if (kIsWeb) {
+      return TextStyle(
+        fontSize: 16,
+        color: color,
+        height: 1.8,
+        fontWeight: FontWeight.w500,
+        fontFamily: 'serif',
+      );
+    }
+    return GoogleFonts.notoSerifKr(
+      fontSize: 16,
+      color: color,
+      height: 1.8,
+      fontWeight: FontWeight.w500,
+    );
+  }
+
+  TextStyle _authorTextStyle(Color color) {
+    if (kIsWeb) {
+      return TextStyle(
+        fontSize: 12,
+        color: color,
+        fontStyle: FontStyle.italic,
+        fontFamily: 'serif',
+      );
+    }
+    return GoogleFonts.notoSerifKr(
+      fontSize: 12,
+      color: color,
+      fontStyle: FontStyle.italic,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLight = bgImageUrl == null &&
@@ -461,12 +495,7 @@ class _WallpaperCanvas extends StatelessWidget {
                     child: Text(
                       displayText,
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.notoSerifKr(
-                        fontSize: 16,
-                        color: textColor,
-                        height: 1.8,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: _quoteTextStyle(textColor),
                     ),
                   ),
                 ),
@@ -475,11 +504,7 @@ class _WallpaperCanvas extends StatelessWidget {
                   Text(
                     authorText,
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.notoSerifKr(
-                      fontSize: 12,
-                      color: subColor,
-                      fontStyle: FontStyle.italic,
-                    ),
+                    style: _authorTextStyle(subColor),
                   ),
                 ],
               ],
