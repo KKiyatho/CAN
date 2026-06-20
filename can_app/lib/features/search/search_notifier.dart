@@ -114,9 +114,15 @@ class SearchNotifier extends Notifier<SearchState> {
     }
   }
 
+  /// 통합 검색: 일반 키워드/감정 문장을 단일 입력으로 처리
+  Future<void> searchUnified(String input) async {
+    await searchByEmotion(input);
+  }
+
   /// 감정 문장 입력 → 태그 추출 → 태그 검색
   Future<void> searchByEmotion(String input) async {
     if (input.trim().isEmpty) return;
+    await _saveRecentSearch(input);
     final tags = TagExtractor.extract(input);
     state = state.copyWith(
       emotionInput: input,
@@ -150,7 +156,6 @@ class SearchNotifier extends Notifier<SearchState> {
           hasMore: byKeyword.hasMore,
           nextOffset: byKeyword.nextOffset,
         );
-        await _saveRecentSearch(input);
         return;
       }
 
@@ -166,6 +171,38 @@ class SearchNotifier extends Notifier<SearchState> {
       );
     } catch (e, st) {
       state = state.copyWith(results: AsyncValue.error(e, st));
+    }
+  }
+
+  /// 현재 상태 기준 재시도
+  Future<void> retryCurrentSearch() async {
+    if (state.keyword.isNotEmpty) {
+      await searchByKeyword(state.keyword);
+      return;
+    }
+    if (state.emotionInput.isNotEmpty) {
+      await searchUnified(state.emotionInput);
+      return;
+    }
+    if (state.selectedTags.isNotEmpty) {
+      state = state.copyWith(
+        results: const AsyncValue.loading(),
+        hasMore: false,
+        nextOffset: 0,
+      );
+      try {
+        final page = await _repo.searchByTags(
+          state.selectedTags,
+          language: _language,
+        );
+        state = state.copyWith(
+          results: AsyncValue.data(page.quotes),
+          hasMore: page.hasMore,
+          nextOffset: page.nextOffset,
+        );
+      } catch (e, st) {
+        state = state.copyWith(results: AsyncValue.error(e, st));
+      }
     }
   }
 

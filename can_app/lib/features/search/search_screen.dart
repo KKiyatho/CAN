@@ -135,7 +135,6 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
-  final _emotionController = TextEditingController(); // 감정 입력창
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
   bool _isSearching = false;
@@ -157,7 +156,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   void dispose() {
     _controller.dispose();
-    _emotionController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -165,24 +163,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   void _clear() {
     _controller.clear();
-    _emotionController.clear();
     _focusNode.unfocus();
     setState(() => _isSearching = false);
     ref.read(searchNotifierProvider.notifier).clearSearch();
-  }
-
-  void _submitEmotion(String v) {
-    if (v.trim().isEmpty) return;
-    FocusScope.of(context).unfocus();
-    setState(() => _isSearching = false);
-    ref.read(searchNotifierProvider.notifier).searchByEmotion(v);
   }
 
   void _submit(String v) {
     if (v.trim().isEmpty) return;
     _focusNode.unfocus();
     setState(() => _isSearching = false);
-    ref.read(searchNotifierProvider.notifier).searchByKeyword(v);
+    ref.read(searchNotifierProvider.notifier).searchUnified(v);
   }
 
   void _selectCategory(_Category cat) {
@@ -287,9 +277,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       lang: lang,
                       state: state,
                       scrollController: _scrollController,
-                      onRetry: () =>
-                          ref.read(searchNotifierProvider.notifier)
-                              .searchByKeyword(_controller.text),
+                        onRetry: () => ref
+                          .read(searchNotifierProvider.notifier)
+                          .retryCurrentSearch(),
                       onClear: _clear,
                       recentSearches: state.recentSearches,
                       onRecentTap: (s) {
@@ -303,8 +293,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   : _CategoryGrid(
                       lang: lang,
                       onTap: _selectCategory,
-                      emotionController: _emotionController,
-                      onEmotionSubmit: _submitEmotion,
                       onTagTap: (tag) => ref
                           .read(searchNotifierProvider.notifier)
                           .searchByTag(tag),
@@ -323,15 +311,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 class _CategoryGrid extends StatelessWidget {
   final String lang;
   final void Function(_Category) onTap;
-  final TextEditingController emotionController;
-  final void Function(String) onEmotionSubmit;
   final void Function(String) onTagTap;
 
   const _CategoryGrid({
     required this.lang,
     required this.onTap,
-    required this.emotionController,
-    required this.onEmotionSubmit,
     required this.onTagTap,
   });
 
@@ -348,10 +332,9 @@ class _CategoryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     return CustomScrollView(
       slivers: [
-        // ── 감정/상황 입력 섹션 ────────────────────────────────────────
+        // ── 감정 빠른 선택 섹션 (입력창은 상단 단일 검색창으로 통합) ─────
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
@@ -363,46 +346,6 @@ class _CategoryGrid extends StatelessWidget {
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
-                ),
-                const SizedBox(height: 10),
-                // 감정 입력창
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: emotionController,
-                        textInputAction: TextInputAction.search,
-                        onSubmitted: onEmotionSubmit,
-                        decoration: InputDecoration(
-                          hintText: I18n.t(lang, 'search.emotionHint'),
-                          prefixIcon:
-                              const Icon(Icons.mood_outlined, size: 20),
-                          filled: true,
-                          fillColor: cs.surfaceContainerHighest,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          isDense: true,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: () =>
-                          onEmotionSubmit(emotionController.text),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: Text(I18n.t(lang, 'search.recommend')),
-                    ),
-                  ],
                 ),
                 const SizedBox(height: 10),
                 // 빠른 감정 칩

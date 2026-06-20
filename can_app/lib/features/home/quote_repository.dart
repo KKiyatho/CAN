@@ -20,6 +20,8 @@ class QuoteRepository {
   QuoteRepository(this._db);
 
   static List<Quote>? _localQuotesCache;
+  static List<Quote>? _localKoreanQuotesCache;
+  static List<Quote>? _builtinEnglishQuotesCache;
   static List<Quote>? _firestoreQuotesCache;
   static DateTime? _firestoreQuotesLoadedAt;
   static const _firestoreCacheTtl = Duration(minutes: 10);
@@ -43,70 +45,128 @@ class QuoteRepository {
     '삶': ['life', 'living'],
   };
 
-  static List<Quote> _builtinFallbackQuotes() {
+  static const List<Map<String, dynamic>> _koreanFallbackSeed = [
+    {'content': '불안은 멈추라는 신호가 아니라, 방향을 점검하라는 신호다.', 'tags': ['불안', '삶', '자기계발']},
+    {'content': '완벽한 시작보다 오늘의 시작이 더 중요하다.', 'tags': ['자기계발', '도전', '성공']},
+    {'content': '작은 성실이 큰 자신감을 만든다.', 'tags': ['자기계발', '성공', '용기']},
+    {'content': '포기하고 싶은 날에도 한 줄은 남겨라.', 'tags': ['지침', '도전', '독서']},
+    {'content': '생각이 복잡할수록 해야 할 일은 단순해진다.', 'tags': ['철학', '삶', '자기계발']},
+    {'content': '비교는 속도를 빼앗고, 집중은 방향을 만든다.', 'tags': ['자기계발', '성공', '삶']},
+    {'content': '용기는 두려움이 없는 상태가 아니라, 두려움과 함께 걷는 태도다.', 'tags': ['용기', '불안', '도전']},
+    {'content': '오늘의 선택이 내일의 습관이 된다.', 'tags': ['자기계발', '삶', '성공']},
+    {'content': '느리게 가도 멈추지 않으면 도착한다.', 'tags': ['도전', '지침', '성공']},
+    {'content': '한 번의 실패는 방향 수정이지 인생 판정이 아니다.', 'tags': ['도전', '성공', '삶']},
+    {'content': '진짜 실력은 조용한 반복에서 자란다.', 'tags': ['자기계발', '성공', '지혜']},
+    {'content': '면접은 평가의 자리이기도 하지만, 선택의 자리이기도 하다.', 'tags': ['면접', '용기', '성공']},
+    {'content': '질문을 잘하는 사람이 기회를 먼저 본다.', 'tags': ['면접', '지혜', '성공']},
+    {'content': '대답보다 태도가 오래 기억된다.', 'tags': ['면접', '관계', '자기계발']},
+    {'content': '사랑은 상대를 바꾸는 힘이 아니라, 이해하려는 힘이다.', 'tags': ['사랑', '관계', '행복']},
+    {'content': '좋은 관계는 자주 말하는 것보다 잘 듣는 것에서 시작된다.', 'tags': ['관계', '사랑', '지혜']},
+    {'content': '진심은 빠른 답장보다 정확한 공감에 가깝다.', 'tags': ['관계', '사랑', '행복']},
+    {'content': '행복은 커다란 사건보다 잦은 감사에 가깝다.', 'tags': ['행복', '삶', '믿음']},
+    {'content': '웃음은 문제를 없애지 못해도 버틸 힘을 준다.', 'tags': ['행복', '지침', '삶']},
+    {'content': '마음이 흔들릴 때는 해야 할 일을 줄여라.', 'tags': ['불안', '지침', '자기계발']},
+    {'content': '철학은 어려운 답이 아니라 깊은 질문에서 시작된다.', 'tags': ['철학', '지혜', '삶']},
+    {'content': '자유는 하고 싶은 것을 다 하는 것이 아니라, 해야 할 것을 선택하는 힘이다.', 'tags': ['철학', '삶', '용기']},
+    {'content': '진실은 편안함보다 오래 남는다.', 'tags': ['철학', '지혜', '관계']},
+    {'content': '지혜는 많이 아는 것이 아니라, 지금 필요한 것을 아는 능력이다.', 'tags': ['지혜', '삶', '자기계발']},
+    {'content': '배움은 기억의 양이 아니라 시선의 변화다.', 'tags': ['지혜', '독서', '자기계발']},
+    {'content': '책은 답을 주기보다 질문의 깊이를 바꾼다.', 'tags': ['독서', '지혜', '철학']},
+    {'content': '읽은 문장은 사라져도 남은 태도는 삶을 바꾼다.', 'tags': ['독서', '삶', '자기계발']},
+    {'content': '창의력은 영감보다 관찰에서 먼저 태어난다.', 'tags': ['창의력', '지혜', '도전']},
+    {'content': '새로운 생각은 익숙한 것을 다르게 부를 때 시작된다.', 'tags': ['창의력', '철학', '자기계발']},
+    {'content': '도전은 큰 결심보다 작은 실행의 누적이다.', 'tags': ['도전', '자기계발', '성공']},
+    {'content': '성공은 속도보다 지속성에 더 가깝다.', 'tags': ['성공', '자기계발', '지침']},
+    {'content': '꾸준함은 재능이 없어도 쌓을 수 있는 가장 공정한 자산이다.', 'tags': ['성공', '자기계발', '용기']},
+    {'content': '믿음은 결과를 아는 확신이 아니라, 과정을 견디는 힘이다.', 'tags': ['믿음', '지침', '삶']},
+    {'content': '기도는 문제를 지우는 주문이 아니라 마음을 세우는 시간이다.', 'tags': ['믿음', '불안', '행복']},
+    {'content': '삶은 정답지를 찾는 여행이 아니라 나만의 문장을 쓰는 과정이다.', 'tags': ['삶', '철학', '자기계발']},
+    {'content': '오늘을 견딘 사람에게 내일은 선물이 된다.', 'tags': ['삶', '지침', '희망']},
+    {'content': '희망은 상황이 좋아서 생기는 감정이 아니라 포기하지 않는 선택이다.', 'tags': ['희망', '도전', '삶']},
+    {'content': '불안한 밤에는 계획보다 호흡을 먼저 챙겨라.', 'tags': ['불안', '행복', '삶']},
+    {'content': '지친 마음은 더 세게 밀기보다 잠깐 멈춰야 회복된다.', 'tags': ['지침', '행복', '삶']},
+    {'content': '면접장에서 필요한 것은 완벽함이 아니라 명확함이다.', 'tags': ['면접', '용기', '자기계발']},
+    {'content': '좋은 답변은 외운 문장이 아니라 경험에서 나온 문장이다.', 'tags': ['면접', '지혜', '성공']},
+    {'content': '관계의 품격은 갈등이 없을 때가 아니라 갈등을 다루는 방식에서 드러난다.', 'tags': ['관계', '사랑', '지혜']},
+    {'content': '사랑은 확신을 요구하기보다 성장을 허락한다.', 'tags': ['사랑', '관계', '행복']},
+    {'content': '행복은 멀리 있는 목표가 아니라 가까이 있는 태도다.', 'tags': ['행복', '삶', '철학']},
+    {'content': '철학은 삶을 느리게 만들지 않는다. 더 정확하게 만든다.', 'tags': ['철학', '지혜', '삶']},
+    {'content': '지혜로운 사람은 말의 크기보다 침묵의 길이를 안다.', 'tags': ['지혜', '관계', '철학']},
+    {'content': '독서는 시간을 쓰는 일이 아니라 시야를 넓히는 일이다.', 'tags': ['독서', '지혜', '자기계발']},
+    {'content': '창의력은 틀을 부수는 힘이 아니라 틀을 다시 설계하는 힘이다.', 'tags': ['창의력', '도전', '지혜']},
+    {'content': '도전은 불확실함을 없애는 일이 아니라 불확실함과 친해지는 일이다.', 'tags': ['도전', '불안', '용기']},
+    {'content': '성공은 크게 이기는 날보다 무너지지 않는 날들로 완성된다.', 'tags': ['성공', '지침', '삶']},
+    {'content': '삶의 방향은 남의 박수보다 내 마음의 평온이 결정한다.', 'tags': ['삶', '행복', '철학']},
+  ];
+
+  static List<Quote> _builtinKoreanQuotes() {
+    if (_localKoreanQuotesCache != null) return _localKoreanQuotesCache!;
     final now = DateTime(2020, 1, 1);
-    return [
+    _localKoreanQuotesCache = _koreanFallbackSeed
+      .take(50)
+      .toList()
+        .asMap()
+        .entries
+        .map(
+          (entry) => Quote(
+            id: 'builtin_ko_${entry.key + 1}',
+            content: entry.value['content'] as String,
+            author: 'CAN',
+            source: null,
+            language: 'ko',
+            isFeatured: false,
+            tags: List<String>.from(entry.value['tags'] as List<dynamic>),
+            createdAt: now.add(Duration(seconds: entry.key)),
+          ),
+        )
+        .toList();
+    return _localKoreanQuotesCache!;
+  }
+
+  static List<Quote> _builtinEnglishQuotes() {
+    if (_builtinEnglishQuotesCache != null) return _builtinEnglishQuotesCache!;
+    final now = DateTime(2020, 1, 1, 0, 10);
+    _builtinEnglishQuotesCache = [
       Quote(
-        id: 'builtin_1',
-        content: 'You do not have to be fearless. You only have to move forward.',
+        id: 'builtin_en_1',
+        content: 'Progress is built by showing up on ordinary days.',
         author: 'CAN',
         source: null,
         language: 'en',
         isFeatured: false,
-        tags: const ['courage', 'strength', 'motivation', '도전', '용기'],
+        tags: const ['motivation', 'growth', 'success'],
         createdAt: now,
       ),
       Quote(
-        id: 'builtin_2',
-        content: '작은 한 걸음이 불안을 이기는 가장 빠른 방법이다.',
+        id: 'builtin_en_2',
+        content: 'Courage is taking one more step while still feeling afraid.',
         author: 'CAN',
         source: null,
-        language: 'ko',
+        language: 'en',
         isFeatured: false,
-        tags: const ['불안', '용기', '삶'],
+        tags: const ['courage', 'life', 'strength'],
         createdAt: now.add(const Duration(seconds: 1)),
       ),
       Quote(
-        id: 'builtin_3',
-        content: 'Rest if you must, but do not quit.',
-        author: 'Unknown',
+        id: 'builtin_en_3',
+        content: 'Consistency can outrun talent when talent stops early.',
+        author: 'CAN',
         source: null,
         language: 'en',
         isFeatured: false,
-        tags: const ['motivation', 'growth', '지침', '자기계발'],
+        tags: const ['success', 'discipline', 'work'],
         createdAt: now.add(const Duration(seconds: 2)),
       ),
-      Quote(
-        id: 'builtin_4',
-        content: '관계는 정답이 아니라, 서로를 이해하려는 연습이다.',
-        author: 'CAN',
-        source: null,
-        language: 'ko',
-        isFeatured: false,
-        tags: const ['관계', '사랑', '행복'],
-        createdAt: now.add(const Duration(seconds: 3)),
-      ),
-      Quote(
-        id: 'builtin_5',
-        content: 'Success is built from ordinary days done consistently.',
-        author: 'CAN',
-        source: null,
-        language: 'en',
-        isFeatured: false,
-        tags: const ['success', 'work', '성공', '자기계발'],
-        createdAt: now.add(const Duration(seconds: 4)),
-      ),
-      Quote(
-        id: 'builtin_6',
-        content: '오늘의 평온은 어제의 걱정을 조금 내려놓은 결과다.',
-        author: 'CAN',
-        source: null,
-        language: 'ko',
-        isFeatured: false,
-        tags: const ['행복', '삶', '믿음'],
-        createdAt: now.add(const Duration(seconds: 5)),
-      ),
     ];
+    return _builtinEnglishQuotesCache!;
+  }
+
+  List<Quote> _builtinQuotesForLanguage(String language) {
+    if (language == 'all') {
+      return [..._builtinKoreanQuotes(), ..._builtinEnglishQuotes()];
+    }
+    if (language == 'ko') return _builtinKoreanQuotes();
+    return _builtinEnglishQuotes();
   }
 
   Future<List<Quote>> _loadLocalQuotes() async {
@@ -147,12 +207,23 @@ class QuoteRepository {
         );
       }
 
-      _localQuotesCache = parsed.isNotEmpty ? parsed : _builtinFallbackQuotes();
+      _localQuotesCache = parsed.isNotEmpty ? parsed : _builtinEnglishQuotes();
       return _localQuotesCache!;
     } catch (_) {
-      _localQuotesCache = _builtinFallbackQuotes();
+      _localQuotesCache = _builtinEnglishQuotes();
       return _localQuotesCache!;
     }
+  }
+
+  Future<List<Quote>> _loadLocalQuotesForLanguage(String language) async {
+    if (language == 'ko') {
+      return _builtinKoreanQuotes();
+    }
+    if (language == 'all') {
+      final en = await _loadLocalQuotes();
+      return [...en, ..._builtinKoreanQuotes()];
+    }
+    return _loadLocalQuotes();
   }
 
   Future<List<Quote>> _loadFirestoreQuotes({int maxDocs = 4000}) async {
@@ -213,12 +284,7 @@ class QuoteRepository {
 
   List<Quote> _filterByLanguage(List<Quote> quotes, String language) {
     if (language == 'all') return quotes;
-    final exact = quotes.where((q) => q.language == language).toList();
-    if (exact.isNotEmpty) return exact;
-    if (language == 'ko') {
-      return quotes.where((q) => q.language == 'en').toList();
-    }
-    return quotes;
+    return quotes.where((q) => q.language == language).toList();
   }
 
   String _normalize(String text) {
@@ -318,26 +384,59 @@ class QuoteRepository {
     return scored.map((e) => e.quote).toList();
   }
 
-  Future<List<Quote>> _localSearchByKeyword(String keyword) async {
-    final normalized = keyword.trim().toLowerCase();
-    if (normalized.isEmpty) return const [];
-    final local = await _loadLocalQuotes();
-    return local.where((q) {
-      if (q.content.toLowerCase().contains(normalized)) return true;
-      if (q.author.toLowerCase().contains(normalized)) return true;
-      return q.tags.any((t) => t.contains(normalized));
-    }).toList();
+  List<Quote> _supplementKoreanByTags(
+    List<Quote> current,
+    List<String> tags,
+  ) {
+    final fallback = _builtinKoreanQuotes();
+    final rankedFallback = _rankByTags(fallback, tags);
+    final merged = _dedupQuotes([
+      ...current,
+      ...rankedFallback,
+      ...fallback,
+    ]);
+    return merged;
   }
 
-  Future<List<Quote>> _localSearchByTags(List<String> tags) async {
+  Future<List<Quote>> _localSearchByTags(List<String> tags, {String language = 'en'}) async {
     if (tags.isEmpty) return const [];
-    final local = await _loadLocalQuotes();
+    final local = await _loadLocalQuotesForLanguage(language);
     final queryTokens = _expandTagTokens(tags);
 
     return local.where((q) {
       final haystack = '${q.content} ${q.author} ${q.tags.join(' ')}'.toLowerCase();
       return queryTokens.any(haystack.contains);
     }).toList();
+  }
+
+  Future<List<Quote>> _firestoreSearchByTags(List<String> tags) async {
+    if (tags.isEmpty) return const [];
+    final normalizedTags = tags
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList();
+    if (normalizedTags.isEmpty) return const [];
+
+    final queryTags = normalizedTags.take(10).toList();
+    try {
+      final snapshot = await _db
+          .collection('quotes')
+          .where('tags', arrayContainsAny: queryTags)
+          .limit(200)
+          .get();
+      return snapshot.docs.map(Quote.fromFirestore).toList();
+    } catch (_) {
+      try {
+        final fallback = await _db
+            .collection('quotes')
+            .where('tags', arrayContains: queryTags.first)
+            .limit(200)
+            .get();
+        return fallback.docs.map(Quote.fromFirestore).toList();
+      } catch (_) {
+        return const [];
+      }
+    }
   }
 
   /// 오늘의 명언: isFeatured=true 중 랜덤 1개
@@ -361,6 +460,14 @@ class QuoteRepository {
       ..shuffle();
 
     if (filtered.isEmpty) {
+      if (language == 'ko') {
+        final localKo = await _loadLocalQuotesForLanguage('ko');
+        if (localKo.isNotEmpty) {
+          final koFeatured = localKo.where((q) => q.isFeatured).toList()..shuffle();
+          if (koFeatured.isNotEmpty) return koFeatured.first;
+          return localKo.first;
+        }
+      }
       // 선택 언어 데이터 없으면 전체에서 랜덤
       final all = snapshot.docs.map(Quote.fromFirestore).toList()..shuffle();
       return all.first;
@@ -376,7 +483,7 @@ class QuoteRepository {
     int limit = 20,
     String language = 'ko',
   }) async {
-    final firestoreAll = await _loadFirestoreQuotes();
+    final firestoreAll = await _loadFirestoreQuotes(maxDocs: 1500);
     final normalized = _normalize(keyword);
     final firestoreMatches = firestoreAll.where((q) {
       final c = _normalize(q.content);
@@ -386,17 +493,25 @@ class QuoteRepository {
           q.tags.any((t) => _normalize(t).contains(normalized));
     }).toList();
 
-    final localMatches = await _localSearchByKeyword(keyword);
+    final localSource = await _loadLocalQuotesForLanguage(language);
+    final localMatches = localSource.where((q) {
+      final content = _normalize(q.content);
+      final author = _normalize(q.author);
+      return content.contains(normalized) ||
+          author.contains(normalized) ||
+          q.tags.any((t) => _normalize(t).contains(normalized));
+    }).toList();
     final merged = _filterByLanguage(
       _dedupQuotes([...firestoreMatches, ...localMatches]),
       language,
     );
     final ranked = _rankByKeyword(merged, keyword);
+    final resolved = ranked.isNotEmpty ? ranked : _builtinQuotesForLanguage(language);
 
-    final page = ranked.skip(offset).take(limit).toList();
+    final page = resolved.skip(offset).take(limit).toList();
     return QuotePage(
       quotes: page,
-      hasMore: offset + page.length < ranked.length,
+      hasMore: offset + page.length < resolved.length,
       nextOffset: offset + page.length,
     );
   }
@@ -412,33 +527,23 @@ class QuoteRepository {
       return const QuotePage(quotes: [], hasMore: false, nextOffset: 0);
     }
 
-    final expanded = _expandTagTokens(tags).map(_normalize).toSet();
-    final normalizedTags = tags.map(_normalize).toSet();
-    final firestoreAll = await _loadFirestoreQuotes();
-
-    final firestoreMatches = firestoreAll.where((q) {
-      final content = _normalize(q.content);
-      final author = _normalize(q.author);
-      final qtags = q.tags.map(_normalize).toList();
-
-      if (qtags.any(normalizedTags.contains)) return true;
-      if (expanded.any((t) => qtags.any((qt) => qt.contains(t)))) return true;
-      if (expanded.any(content.contains)) return true;
-      if (expanded.any(author.contains)) return true;
-      return false;
-    }).toList();
-
-    final localMatches = await _localSearchByTags(tags);
+    final firestoreMatches = await _firestoreSearchByTags(tags);
+    final localMatches = await _localSearchByTags(tags, language: language);
     final merged = _filterByLanguage(
       _dedupQuotes([...firestoreMatches, ...localMatches]),
       language,
     );
     final ranked = _rankByTags(merged, tags);
+    var resolved =
+        ranked.isNotEmpty ? ranked : _builtinQuotesForLanguage(language);
+    if (language == 'ko') {
+      resolved = _supplementKoreanByTags(resolved, tags);
+    }
 
-    final page = ranked.skip(offset).take(limit).toList();
+    final page = resolved.skip(offset).take(limit).toList();
     return QuotePage(
       quotes: page,
-      hasMore: offset + page.length < ranked.length,
+      hasMore: offset + page.length < resolved.length,
       nextOffset: offset + page.length,
     );
   }

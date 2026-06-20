@@ -54,7 +54,7 @@ class CategoryDetailState {
 // ---------------------------------------------------------------------------
 class CategoryDetailNotifier
     extends AutoDisposeFamilyNotifier<CategoryDetailState, String> {
-  static const int _pageSize = 20;
+  static const int _pageSize = 50;
 
   @override
   CategoryDetailState build(String tag) {
@@ -69,9 +69,10 @@ class CategoryDetailNotifier
   // ── 첫 페이지 로딩 ─────────────────────────────────────────────────────
   Future<void> _loadInitial(String tag) async {
     final repo = ref.read(quoteRepositoryProvider);
+    final language = ref.read(themeNotifierProvider).languageCode;
 
     // 1. 로컬 캐시 먼저 표시 (빠른 첫 렌더링)
-    final cached = await _loadCache(tag);
+    final cached = await _loadCache(tag, language);
     if (cached != null && cached.isNotEmpty) {
       state = state.copyWith(
         quotes: cached,
@@ -83,11 +84,10 @@ class CategoryDetailNotifier
 
     // 2. Firestore에서 최신 첫 페이지 가져오기 (cursor 없이)
     try {
-      final language = ref.read(themeNotifierProvider).languageCode;
       final result = await repo.fetchByTagPaginated(tag,
           limit: _pageSize, language: language);
 
-      await _saveCache(tag, result.quotes);
+      await _saveCache(tag, language, result.quotes);
 
       state = state.copyWith(
         quotes: result.quotes,
@@ -144,12 +144,13 @@ class CategoryDetailNotifier
   }
 
   // ── 로컬 캐시 (SharedPreferences) ─────────────────────────────────────
-  static String _cacheKey(String tag) => 'quote_cache_tag_$tag';
+  static String _cacheKey(String tag, String language) =>
+      'quote_cache_tag_${language}_$tag';
 
-  Future<List<Quote>?> _loadCache(String tag) async {
+  Future<List<Quote>?> _loadCache(String tag, String language) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_cacheKey(tag));
+      final raw = prefs.getString(_cacheKey(tag, language));
       if (raw == null) return null;
       final list = jsonDecode(raw) as List<dynamic>;
       return list
@@ -160,11 +161,11 @@ class CategoryDetailNotifier
     }
   }
 
-  Future<void> _saveCache(String tag, List<Quote> quotes) async {
+  Future<void> _saveCache(String tag, String language, List<Quote> quotes) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final encoded = jsonEncode(quotes.map((q) => q.toMap()).toList());
-      await prefs.setString(_cacheKey(tag), encoded);
+      await prefs.setString(_cacheKey(tag, language), encoded);
     } catch (_) {
       // 캐시 저장 실패는 무시
     }
