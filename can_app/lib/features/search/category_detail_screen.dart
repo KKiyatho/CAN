@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/theme/i18n.dart';
+import '../../core/theme/theme_notifier.dart';
 import '../../shared/models/quote.dart';
 import 'category_detail_notifier.dart';
 
@@ -51,6 +53,7 @@ class _CategoryDetailScreenState extends ConsumerState<CategoryDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(themeNotifierProvider).languageCode;
     final state = ref.watch(categoryDetailProvider(widget.tag));
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -86,7 +89,7 @@ class _CategoryDetailScreenState extends ConsumerState<CategoryDetailScreen> {
               titlePadding:
                   const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 18),
               title: Text(
-                '${widget.label} 명언집',
+                '${widget.label}${I18n.t(lang, 'category.collectionSuffix')}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,
@@ -190,7 +193,7 @@ class _CategoryDetailScreenState extends ConsumerState<CategoryDetailScreen> {
                   const SizedBox(width: 8),
                   if (state.quotes.isNotEmpty)
                     Text(
-                      '${state.quotes.length}개 명언',
+                      '${state.quotes.length}${I18n.t(lang, 'category.countSuffix')}',
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: colorScheme.outline),
                     ),
@@ -231,7 +234,7 @@ class _CategoryDetailScreenState extends ConsumerState<CategoryDetailScreen> {
                             .read(categoryDetailProvider(widget.tag).notifier)
                             .retry(),
                         icon: const Icon(Icons.refresh),
-                        label: const Text('다시 시도'),
+                        label: Text(I18n.t(lang, 'category.retry')),
                       ),
                     ],
                   ),
@@ -245,7 +248,7 @@ class _CategoryDetailScreenState extends ConsumerState<CategoryDetailScreen> {
               hasScrollBody: false,
               child: Center(
                 child: Text(
-                  '아직 명언이 없어요.',
+                  I18n.t(lang, 'category.empty'),
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(color: colorScheme.outline),
                 ),
@@ -284,7 +287,7 @@ class _CategoryDetailScreenState extends ConsumerState<CategoryDetailScreen> {
                                     color: colorScheme.outline, size: 20),
                                 const SizedBox(height: 6),
                                 Text(
-                                  '모든 명언을 다 봤어요',
+                                  I18n.t(lang, 'category.done'),
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: colorScheme.outline,
                                   ),

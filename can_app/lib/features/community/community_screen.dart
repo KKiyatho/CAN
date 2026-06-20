@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/firebase/auth_providers.dart';
+import '../../core/theme/i18n.dart';
+import '../../core/theme/theme_notifier.dart';
 import '../../shared/widgets/state_views.dart';
 import 'community_notifier.dart';
 import 'community_post.dart';
@@ -61,9 +63,10 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     }
 
     if (userId == null) {
+      final lang = ref.read(themeNotifierProvider).languageCode;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('인증 중입니다. 잠시 후 다시 시도해 주세요.')),
+        SnackBar(content: Text(I18n.t(lang, 'community.authPending'))),
       );
       return;
     }
@@ -80,11 +83,12 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(themeNotifierProvider).languageCode;
     final communityState = ref.watch(communityNotifierProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('커뮤니티'),
+        title: Text(I18n.t(lang, 'community.title')),
         centerTitle: false,
         actions: [
           IconButton(
@@ -117,13 +121,13 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                       if (communityState.topPosts.isNotEmpty)
                         SliverToBoxAdapter(
                           child: _TopPostsSection(
-                              posts: communityState.topPosts),
+                              posts: communityState.topPosts, lang: lang),
                         ),
                       // ── 피드 ────────────────────────────────────────────
                       if (communityState.posts.isEmpty)
-                        const SliverFillRemaining(
+                        SliverFillRemaining(
                           child: EmptyView(
-                            message: '아직 게시글이 없습니다.\n첫 번째 글을 남겨보세요!',
+                            message: I18n.t(lang, 'community.empty'),
                           ),
                         )
                       else
@@ -142,6 +146,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                               }
                               return _PostCard(
                                 post: communityState.posts[i],
+                                lang: lang,
                                 onLike: () => ref
                                     .read(communityNotifierProvider.notifier)
                                     .toggleLike(communityState.posts[i].id),
@@ -161,8 +166,9 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
 // 인기 글 가로 스크롤 섹션
 // ---------------------------------------------------------------------------
 class _TopPostsSection extends StatelessWidget {
-  const _TopPostsSection({required this.posts});
+  const _TopPostsSection({required this.posts, required this.lang});
   final List<CommunityPost> posts;
+  final String lang;
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +186,7 @@ class _TopPostsSection extends StatelessWidget {
                   color: cs.primary, size: 18),
               const SizedBox(width: 6),
               Text(
-                '인기 글',
+                I18n.t(lang, 'community.topPosts'),
                 style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700),
               ),
@@ -196,6 +202,7 @@ class _TopPostsSection extends StatelessWidget {
             itemBuilder: (ctx, i) => _TopPostCard(
               rank: i + 1,
               post: posts[i],
+              lang: lang,
             ),
           ),
         ),
@@ -206,9 +213,11 @@ class _TopPostsSection extends StatelessWidget {
 }
 
 class _TopPostCard extends StatelessWidget {
-  const _TopPostCard({required this.rank, required this.post});
+  const _TopPostCard(
+      {required this.rank, required this.post, required this.lang});
   final int rank;
   final CommunityPost post;
+  final String lang;
 
   @override
   Widget build(BuildContext context) {
@@ -227,7 +236,9 @@ class _TopPostCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '$rank위',
+            lang == 'en'
+                ? '#$rank'
+                : '$rank${I18n.t(lang, 'community.rank')}',
             style: textTheme.labelSmall?.copyWith(
               color: cs.primary,
               fontWeight: FontWeight.w700,
@@ -262,16 +273,22 @@ class _TopPostCard extends StatelessWidget {
 // 피드 카드
 // ---------------------------------------------------------------------------
 class _PostCard extends StatelessWidget {
-  const _PostCard({required this.post, required this.onLike});
+  const _PostCard(
+      {required this.post, required this.onLike, required this.lang});
   final CommunityPost post;
   final VoidCallback onLike;
+  final String lang;
 
   String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return '방금 전';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
-    if (diff.inHours < 24) return '${diff.inHours}시간 전';
-    return '${diff.inDays}일 전';
+    if (diff.inMinutes < 1) return I18n.t(lang, 'community.justNow');
+    if (diff.inMinutes < 60) {
+      return '${diff.inMinutes}${I18n.t(lang, 'community.minAgo')}';
+    }
+    if (diff.inHours < 24) {
+      return '${diff.inHours}${I18n.t(lang, 'community.hourAgo')}';
+    }
+    return '${diff.inDays}${I18n.t(lang, 'community.dayAgo')}';
   }
 
   @override

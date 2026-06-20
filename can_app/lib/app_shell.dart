@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/theme/i18n.dart';
+import '../core/theme/theme_notifier.dart';
 import '../features/home/home_screen.dart';
 import '../features/search/search_screen.dart';
 import '../features/community/community_screen.dart';
@@ -12,29 +14,32 @@ final _tabIndexProvider = StateProvider<int>((_) => 0);
 class AppShell extends ConsumerWidget {
   const AppShell({super.key});
 
-  static const _tabs = [
-    _TabItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: '홈'),
-    _TabItem(
-        icon: Icons.search_outlined,
-        activeIcon: Icons.search,
-        label: '검색/추천'),
-    _TabItem(
-        icon: Icons.people_outline,
-        activeIcon: Icons.people,
-        label: '커뮤니티'),
-    _TabItem(
-        icon: Icons.alarm_outlined,
-        activeIcon: Icons.alarm,
-        label: '알람'),
-    _TabItem(
-        icon: Icons.wallpaper_outlined,
-        activeIcon: Icons.wallpaper,
-        label: '배경화면'),
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = ref.watch(_tabIndexProvider);
+  final lang = ref.watch(themeNotifierProvider).languageCode;
+  final tabs = [
+    _TabItem(
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home,
+      label: I18n.t(lang, 'tab.home')),
+    _TabItem(
+      icon: Icons.search_outlined,
+      activeIcon: Icons.search,
+      label: I18n.t(lang, 'tab.search')),
+    _TabItem(
+      icon: Icons.people_outline,
+      activeIcon: Icons.people,
+      label: I18n.t(lang, 'tab.community')),
+    _TabItem(
+      icon: Icons.alarm_outlined,
+      activeIcon: Icons.alarm,
+      label: I18n.t(lang, 'tab.alarm')),
+    _TabItem(
+      icon: Icons.wallpaper_outlined,
+      activeIcon: Icons.wallpaper,
+      label: I18n.t(lang, 'tab.wallpaper')),
+  ];
 
     return Scaffold(
       body: IndexedStack(
@@ -52,7 +57,7 @@ class AppShell extends ConsumerWidget {
         selectedIndex: currentIndex,
         onDestinationSelected: (i) =>
             ref.read(_tabIndexProvider.notifier).state = i,
-        destinations: _tabs
+        destinations: tabs
             .map((t) => NavigationDestination(
                   icon: Icon(t.icon),
                   selectedIcon: Icon(t.activeIcon),

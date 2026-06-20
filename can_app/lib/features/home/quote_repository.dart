@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/firebase/firebase_providers.dart';
@@ -16,6 +18,108 @@ const _kDeviceIdKey = 'device_id';
 class QuoteRepository {
   final FirebaseFirestore _db;
   QuoteRepository(this._db);
+
+  static List<Quote>? _localQuotesCache;
+
+  static const Map<String, List<String>> _tagToLocalTokens = {
+    '불안': ['anxiety', 'fear', 'worry', 'stress', 'sadness'],
+    '지침': ['motivation', 'inspirational', 'life', 'hope', 'strength'],
+    '면접': ['work', 'success', 'achievement', 'career'],
+    '관계': ['friendship', 'love', 'relationship'],
+    '철학': ['philosophy', 'truth', 'wisdom'],
+    '성공': ['success', 'achievement', 'work'],
+    '독서': ['books', 'reading', 'literature'],
+    '지혜': ['wisdom', 'knowledge', 'science', 'truth'],
+    '창의력': ['art', 'creativity', 'imagination'],
+    '도전': ['motivational', 'inspirational', 'courage', 'strength'],
+    '용기': ['courage', 'strength', 'bravery'],
+    '믿음': ['faith', 'hope', 'religion'],
+    '사랑': ['love', 'romance'],
+    '행복': ['happiness', 'joy', 'smile'],
+    '자기계발': ['inspirational', 'motivational', 'self', 'growth'],
+    '삶': ['life', 'living'],
+  };
+
+  Future<List<Quote>> _loadLocalQuotes() async {
+    if (_localQuotesCache != null) return _localQuotesCache!;
+    final raw = await rootBundle.loadString('assets/quotes.json');
+    final decoded = jsonDecode(raw) as List<dynamic>;
+
+    final parsed = <Quote>[];
+    for (var i = 0; i < decoded.length; i++) {
+      final item = decoded[i] as Map<String, dynamic>;
+      final content = (item['Quote'] as String? ?? '').trim();
+      if (content.isEmpty) continue;
+      final author = (item['Author'] as String? ?? 'Unknown').trim();
+      final category = (item['Category'] as String? ?? '').trim().toLowerCase();
+      final tagsRaw = (item['Tags'] as List<dynamic>? ?? [])
+          .map((e) => e.toString().trim().toLowerCase())
+          .where((e) => e.isNotEmpty)
+          .toList();
+      final mergedTags = {...tagsRaw, if (category.isNotEmpty) category}.toList();
+      parsed.add(
+        Quote(
+          id: 'local_$i',
+          content: content,
+          author: author,
+          source: null,
+          language: 'en',
+          isFeatured: false,
+          tags: mergedTags,
+          createdAt: DateTime(2020, 1, 1).add(Duration(seconds: i)),
+        ),
+      );
+    }
+    _localQuotesCache = parsed;
+    return parsed;
+  }
+
+  List<Quote> _dedupQuotes(List<Quote> quotes) {
+    final map = <String, Quote>{};
+    for (final q in quotes) {
+      final key = '${q.content.toLowerCase()}|${q.author.toLowerCase()}';
+      map.putIfAbsent(key, () => q);
+    }
+    return map.values.toList();
+  }
+
+  List<Quote> _filterByLanguage(List<Quote> quotes, String language) {
+    if (language == 'all') return quotes;
+    final exact = quotes.where((q) => q.language == language).toList();
+    if (exact.isNotEmpty) return exact;
+    if (language == 'ko') {
+      return quotes.where((q) => q.language == 'en').toList();
+    }
+    return quotes;
+  }
+
+  Future<List<Quote>> _localSearchByKeyword(String keyword) async {
+    final normalized = keyword.trim().toLowerCase();
+    if (normalized.isEmpty) return const [];
+    final local = await _loadLocalQuotes();
+    return local.where((q) {
+      if (q.content.toLowerCase().contains(normalized)) return true;
+      if (q.author.toLowerCase().contains(normalized)) return true;
+      return q.tags.any((t) => t.contains(normalized));
+    }).toList();
+  }
+
+  Future<List<Quote>> _localSearchByTags(List<String> tags) async {
+    if (tags.isEmpty) return const [];
+    final local = await _loadLocalQuotes();
+    final queryTokens = <String>{};
+    for (final tag in tags) {
+      final lowered = tag.toLowerCase();
+      queryTokens.add(lowered);
+      queryTokens.addAll(_tagToLocalTokens[tag] ?? const []);
+      queryTokens.addAll(_tagToLocalTokens[lowered] ?? const []);
+    }
+
+    return local.where((q) {
+      final haystack = '${q.content} ${q.author} ${q.tags.join(' ')}'.toLowerCase();
+      return queryTokens.any(haystack.contains);
+    }).toList();
+  }
 
   /// 오늘의 명언: isFeatured=true 중 랜덤 1개
   /// [language]: 'ko' | 'en' | 'all'
@@ -60,13 +164,18 @@ class QuoteRepository {
         .get();
 
     final normalized = keyword.trim().toLowerCase();
-    final all = snapshot.docs
+    final firestoreMatches = snapshot.docs
         .map(Quote.fromFirestore)
-        .where((q) =>
-            (language == 'all' || q.language == language) &&
-            (q.content.toLowerCase().contains(normalized) ||
-             q.author.toLowerCase().contains(normalized)))
+      .where((q) => q.content.toLowerCase().contains(normalized) ||
+        q.author.toLowerCase().contains(normalized) ||
+        q.tags.any((t) => t.toLowerCase().contains(normalized)))
         .toList();
+
+    final localMatches = await _localSearchByKeyword(keyword);
+    final all = _filterByLanguage(
+      _dedupQuotes([...firestoreMatches, ...localMatches]),
+      language,
+    );
 
     final page = all.skip(offset).take(limit).toList();
     return QuotePage(
@@ -87,18 +196,20 @@ class QuoteRepository {
       return const QuotePage(quotes: [], hasMore: false, nextOffset: 0);
     }
 
-    // arrayContainsAny 최대 10개
-    final effectiveTags = tags.take(10).toList();
-    final snapshot = await _db
-        .collection('quotes')
-        .where('tags', arrayContainsAny: effectiveTags)
-        .limit(500)
-        .get();
+    final tagSet = tags.toSet();
+    final snapshot = await _db.collection('quotes').limit(500).get();
 
-    final all = snapshot.docs
+    final firestoreMatches = snapshot.docs
         .map(Quote.fromFirestore)
-        .where((q) => language == 'all' || q.language == language)
+      .where((q) => q.tags.any(tagSet.contains))
         .toList();
+
+    final localMatches = await _localSearchByTags(tags);
+    final all = _filterByLanguage(
+      _dedupQuotes([...firestoreMatches, ...localMatches]),
+      language,
+    );
+
     final page = all.skip(offset).take(limit).toList();
     return QuotePage(
       quotes: page,
@@ -133,9 +244,18 @@ class QuoteRepository {
     final snapshot = await query.get();
     final docs = snapshot.docs;
 
-    final quotes = docs
+    final firestoreQuotes = docs
         .map(Quote.fromFirestore)
-        .where((q) => language == 'all' || q.language == language)
+        .toList();
+
+    var merged = _filterByLanguage(firestoreQuotes, language);
+
+    if (merged.length < limit) {
+      final localMatches = await _localSearchByTags([tag]);
+      merged = _dedupQuotes([...merged, ..._filterByLanguage(localMatches, language)]);
+    }
+
+    final quotes = merged
         .take(limit)
         .toList();
 

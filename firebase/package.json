@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "seed:quotes:test": "node seed_all.js --limit 300",
+    "seed:quotes:full": "node seed_all.js",
+    "seed:quotes:resume": "node seed_all.js --skip 18000"
+  },
   "dependencies": {
     "firebase-admin": "^14.0.0"
   }

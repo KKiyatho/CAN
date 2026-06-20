@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/firebase/auth_providers.dart';
+import '../../core/theme/i18n.dart';
+import '../../core/theme/theme_notifier.dart';
 import 'community_post.dart';
 import 'community_repository.dart';
 
@@ -88,9 +90,10 @@ class CommunityNotifier extends Notifier<CommunityState> {
       );
     } catch (e, st) {
       if (kDebugMode) debugPrint('[Community] 로딩 실패: $e\n$st');
+      final lang = ref.read(themeNotifierProvider).languageCode;
       state = state.copyWith(
         isLoading: false,
-        error: '게시글을 불러오지 못했습니다.',
+        error: I18n.t(lang, 'community.loadError'),
       );
     }
   }

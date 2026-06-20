@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/i18n.dart';
+import '../../core/theme/theme_notifier.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ---------------------------------------------------------------------------
 // AlarmUnlockScreen — 명언 타이핑으로 알람 해제
 // ---------------------------------------------------------------------------
-class AlarmUnlockScreen extends StatefulWidget {
+class AlarmUnlockScreen extends ConsumerStatefulWidget {
   const AlarmUnlockScreen({super.key, required this.phrase});
   final String phrase;
 
   @override
-  State<AlarmUnlockScreen> createState() => _AlarmUnlockScreenState();
+  ConsumerState<AlarmUnlockScreen> createState() => _AlarmUnlockScreenState();
 }
 
-class _AlarmUnlockScreenState extends State<AlarmUnlockScreen> {
+class _AlarmUnlockScreenState extends ConsumerState<AlarmUnlockScreen> {
   final _controller = TextEditingController();
   bool _unlocked = false;
 
@@ -32,6 +35,7 @@ class _AlarmUnlockScreenState extends State<AlarmUnlockScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(themeNotifierProvider).languageCode;
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final typed = _controller.text;
@@ -52,7 +56,7 @@ class _AlarmUnlockScreenState extends State<AlarmUnlockScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                '아래 문구를 입력해\n알람을 해제하세요.',
+                I18n.t(lang, 'alarmUnlock.guide'),
                 style: textTheme.titleLarge?.copyWith(height: 1.4),
               ),
               const SizedBox(height: 32),
@@ -81,7 +85,7 @@ class _AlarmUnlockScreenState extends State<AlarmUnlockScreen> {
                 onChanged: _onChanged,
                 style: textTheme.bodyLarge,
                 decoration: InputDecoration(
-                  hintText: '위 문구를 그대로 입력하세요',
+                  hintText: I18n.t(lang, 'alarmUnlock.hint'),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

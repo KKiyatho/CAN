@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart' show Share;
+import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../shared/widgets/quote_card.dart';
 import '../../shared/widgets/state_views.dart';
@@ -14,6 +15,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final homeState = ref.watch(homeNotifierProvider);
     final themeState = ref.watch(themeNotifierProvider);
+    final lang = themeState.languageCode;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -26,7 +28,7 @@ class HomeScreen extends ConsumerWidget {
         actions: [
           // 다크모드 토글
           IconButton(
-            tooltip: '다크/라이트 모드',
+            tooltip: I18n.t(lang, 'home.darkModeTooltip'),
             icon: Icon(
               themeState.isDark ? Icons.light_mode : Icons.dark_mode,
             ),
@@ -35,7 +37,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           // 언어 선택
           IconButton(
-            tooltip: '언어 선택',
+            tooltip: I18n.t(lang, 'home.languageTooltip'),
             icon: const Icon(Icons.translate),
             onPressed: () => _showLanguagePicker(context, ref, themeState),
           ),
@@ -57,7 +59,7 @@ class HomeScreen extends ConsumerWidget {
       body: homeState.quote.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
-          message: '명언을 불러오지 못했습니다.\n$e',
+          message: '${I18n.t(lang, 'home.loadError')}\n$e',
           onRetry: () =>
               ref.read(homeNotifierProvider.notifier).loadQuote(),
         ),
@@ -88,7 +90,7 @@ class HomeScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('테마 색상',
+            Text(I18n.t(themeState.languageCode, 'home.themeTitle'),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     )),
@@ -150,7 +152,7 @@ class HomeScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('명언 언어',
+            Text(I18n.t(themeState.languageCode, 'home.languageTitle'),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     )),
@@ -206,6 +208,7 @@ class _QuoteBody extends ConsumerWidget {
     final isBookmarked = quote.isBookmarked(q.id);
     final isLiked = quote.isLiked(q.id);
     final colorScheme = Theme.of(context).colorScheme;
+    final lang = ref.watch(themeNotifierProvider).languageCode;
 
     return SafeArea(
       child: Padding(
@@ -214,7 +217,8 @@ class _QuoteBody extends ConsumerWidget {
           children: [
             Expanded(
               child: Center(
-                child: QuoteCard(quote: q, label: '오늘의 명언'),
+                child: QuoteCard(
+                    quote: q, label: I18n.t(lang, 'home.todayQuote')),
               ),
             ),
 
@@ -229,7 +233,7 @@ class _QuoteBody extends ConsumerWidget {
                     icon: isLiked
                         ? Icons.favorite
                         : Icons.favorite_border,
-                    label: '좋아요',
+                    label: I18n.t(lang, 'home.like'),
                     color: isLiked ? Colors.redAccent : null,
                     onTap: onLike,
                   ),
@@ -238,20 +242,20 @@ class _QuoteBody extends ConsumerWidget {
                     icon: isBookmarked
                         ? Icons.bookmark
                         : Icons.bookmark_border,
-                    label: '저장',
+                    label: I18n.t(lang, 'home.save'),
                     color: isBookmarked ? colorScheme.primary : null,
                     onTap: onBookmark,
                   ),
                   // 공유
                   _ActionButton(
                     icon: Icons.share_outlined,
-                    label: '공유',
+                    label: I18n.t(lang, 'home.share'),
                     onTap: onShare,
                   ),
                   // 다른 명언
                   _ActionButton(
                     icon: Icons.refresh,
-                    label: '다음 명언',
+                    label: I18n.t(lang, 'home.nextQuote'),
                     onTap: onRefresh,
                   ),
                 ],

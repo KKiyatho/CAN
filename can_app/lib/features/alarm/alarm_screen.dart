@@ -2,10 +2,29 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../../core/theme/i18n.dart';
+import '../../core/theme/theme_notifier.dart';
 
 import 'alarm_model.dart';
 import 'alarm_notifier.dart';
 import 'alarm_unlock_screen.dart';
+
+String _alarmRepeatLabel(List<bool> repeatDays, String lang) {
+  final active = <int>[];
+  for (var i = 0; i < repeatDays.length; i++) {
+    if (repeatDays[i]) active.add(i);
+  }
+  if (active.isEmpty) return lang == 'en' ? 'No repeat' : '반복 없음';
+  if (active.length == 7) return lang == 'en' ? 'Every day' : '매일';
+  final weekdaySet = {0, 1, 2, 3, 4};
+  if (active.toSet().containsAll(weekdaySet) && active.length == 5) {
+    return lang == 'en' ? 'Weekdays' : '평일';
+  }
+  final labels = lang == 'en'
+      ? const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+      : const ['월', '화', '수', '목', '금', '토', '일'];
+  return active.map((i) => labels[i]).join(', ');
+}
 
 // ---------------------------------------------------------------------------
 // AlarmScreen
@@ -53,13 +72,14 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(themeNotifierProvider).languageCode;
     final alarms = ref.watch(alarmNotifierProvider);
     final textTheme = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('알람'),
+        title: Text(I18n.t(lang, 'alarm.title')),
         centerTitle: false,
       ),
       floatingActionButton: FloatingActionButton(
@@ -76,7 +96,7 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
                       size: 64, color: cs.onSurfaceVariant),
                   const SizedBox(height: 16),
                   Text(
-                    '알람이 없습니다.\n+ 버튼으로 추가하세요.',
+                    I18n.t(lang, 'alarm.empty'),
                     textAlign: TextAlign.center,
                     style: textTheme.bodyMedium
                         ?.copyWith(color: cs.onSurfaceVariant),
@@ -89,6 +109,7 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
               itemCount: alarms.length,
               itemBuilder: (ctx, i) => _AlarmCard(
                 alarm: alarms[i],
+                lang: lang,
                 onToggle: () =>
                     ref.read(alarmNotifierProvider.notifier).toggle(alarms[i].id),
                 onEdit: () => _showEditSheet(alarms[i]),
@@ -112,12 +133,14 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
 class _AlarmCard extends StatelessWidget {
   const _AlarmCard({
     required this.alarm,
+    required this.lang,
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
     required this.onUnlockPreview,
   });
   final AlarmModel alarm;
+  final String lang;
   final VoidCallback onToggle;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -154,7 +177,7 @@ class _AlarmCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      alarm.repeatLabel,
+                      _alarmRepeatLabel(alarm.repeatDays, lang),
                       style: textTheme.bodySmall?.copyWith(
                         color: cs.onSurfaceVariant,
                       ),
@@ -231,8 +254,9 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
     _repeatDays = widget.existing != null
         ? List.from(widget.existing!.repeatDays)
         : List.filled(7, false);
+    final lang = ref.read(themeNotifierProvider).languageCode;
     _phraseController = TextEditingController(
-      text: widget.existing?.unlockPhrase ?? '나는 할 수 있다',
+      text: widget.existing?.unlockPhrase ?? I18n.t(lang, 'alarm.unlockHint'),
     );
     _hourController = FixedExtentScrollController(initialItem: _hour);
     _minuteController = FixedExtentScrollController(initialItem: _minute);
@@ -248,8 +272,9 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
 
   Future<void> _save() async {
     // 해제 문구 검증: 빈 값이면 기본값, 30자 초과 방어
+    final lang = ref.read(themeNotifierProvider).languageCode;
     String phrase = _phraseController.text.trim();
-    if (phrase.isEmpty) phrase = '나는 할 수 있다';
+    if (phrase.isEmpty) phrase = I18n.t(lang, 'alarm.unlockHint');
     if (phrase.length > 30) phrase = phrase.substring(0, 30);
 
     final notifier = ref.read(alarmNotifierProvider.notifier);
@@ -273,6 +298,7 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(themeNotifierProvider).languageCode;
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -300,7 +326,7 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
           ),
           const SizedBox(height: 20),
           // ── 휠 시간 선택기 ───────────────────────────────────────────────
-          Text('시간 설정', style: textTheme.labelMedium),
+          Text(I18n.t(lang, 'alarm.time'), style: textTheme.labelMedium),
           const SizedBox(height: 8),
           SizedBox(
             height: 160,
@@ -399,7 +425,7 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
           ),
           const SizedBox(height: 16),
           // ── 반복 요일 ────────────────────────────────────────────────────
-          Text('반복', style: textTheme.labelMedium),
+          Text(I18n.t(lang, 'alarm.repeat'), style: textTheme.labelMedium),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -431,13 +457,13 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
           ),
           const SizedBox(height: 20),
           // ── 해제 문구 ────────────────────────────────────────────────────
-          Text('알람 해제 문구 (직접 입력)', style: textTheme.labelMedium),
+          Text(I18n.t(lang, 'alarm.unlockPhrase'), style: textTheme.labelMedium),
           const SizedBox(height: 8),
           TextField(
             controller: _phraseController,
             maxLength: 30,
             decoration: InputDecoration(
-              hintText: '나는 할 수 있다',
+              hintText: I18n.t(lang, 'alarm.unlockHint'),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -450,7 +476,9 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
             height: 50,
             child: FilledButton(
               onPressed: _save,
-              child: Text(widget.existing != null ? '수정하기' : '알람 추가'),
+              child: Text(widget.existing != null
+                  ? I18n.t(lang, 'alarm.edit')
+                  : I18n.t(lang, 'alarm.add')),
             ),
           ),
         ],

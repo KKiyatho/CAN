@@ -37,6 +37,21 @@ class TagExtractor {
         .toList();
   }
 
+  /// 입력이 모호할 때 최소한의 추천이 가능하도록 기본 태그를 제공
+  static List<String> fallbackTags(String input) {
+    final lower = input.toLowerCase();
+    if (lower.contains('힘들') || lower.contains('지치')) {
+      return const ['지침', '자기계발', '행복'];
+    }
+    if (lower.contains('불안') || lower.contains('걱정') || lower.contains('초조')) {
+      return const ['불안', '용기', '믿음'];
+    }
+    if (lower.contains('외로') || lower.contains('사랑') || lower.contains('관계')) {
+      return const ['관계', '사랑', '행복'];
+    }
+    return const ['삶', '자기계발', '행복'];
+  }
+
   /// 전체 태그 목록 (검색 탭 칩 UI용)
   static List<String> get allTags => _tagKeywords.keys.toList();
 }

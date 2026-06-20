@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/i18n.dart';
+import '../../core/theme/theme_notifier.dart';
 import '../../shared/widgets/quote_card.dart';
 import '../../shared/widgets/state_views.dart';
 import 'category_detail_screen.dart';
@@ -20,6 +22,28 @@ class _Category {
     required this.gradient,
     required this.imageUrl,
   });
+}
+
+String _localizedSearchLabel(String lang, String ko) {
+  if (lang != 'en') return ko;
+  const map = {
+    '철학자': 'Philosophers',
+    '기업가': 'Entrepreneurs',
+    '작가': 'Writers',
+    '과학자': 'Scientists',
+    '예술가': 'Artists',
+    '운동선수': 'Athletes',
+    '정치가': 'Politicians',
+    '종교인': 'Religious',
+    '사랑': 'Love',
+    '행복': 'Happiness',
+    '자기계발': 'Self Growth',
+    '삶': 'Life',
+    '불안': 'Anxiety',
+    '지침': 'Exhaustion',
+    '면접': 'Interview',
+  };
+  return map[ko] ?? ko;
 }
 
 const _kCategories = [
@@ -164,10 +188,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void _selectCategory(_Category cat) {
     _focusNode.unfocus();
     setState(() => _isSearching = false);
+    final lang = ref.read(themeNotifierProvider).languageCode;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => CategoryDetailScreen(
-          label: cat.label,
+          label: _localizedSearchLabel(lang, cat.label),
           tag: cat.tag,
           gradient: cat.gradient,
           imageUrl: cat.imageUrl,
@@ -178,6 +203,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(themeNotifierProvider).languageCode;
     final state = ref.watch(searchNotifierProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -200,7 +226,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ? CrossFadeState.showSecond
                     : CrossFadeState.showFirst,
                 firstChild: Text(
-                  '검색',
+                  I18n.t(lang, 'search.title'),
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
@@ -222,7 +248,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       onChanged: (_) => setState(() {}),
                       onSubmitted: _submit,
                       decoration: InputDecoration(
-                        hintText: '명언, 인물, 상황 검색',
+                        hintText: I18n.t(lang, 'search.hint'),
                         prefixIcon: const Icon(Icons.search, size: 20),
                         suffixIcon: _controller.text.isNotEmpty
                             ? IconButton(
@@ -246,7 +272,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     const SizedBox(width: 8),
                     TextButton(
                       onPressed: _clear,
-                      child: const Text('취소'),
+                      child: Text(I18n.t(lang, 'search.cancel')),
                     ),
                   ],
                 ],
@@ -258,11 +284,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             Expanded(
               child: showResults
                   ? _ResultsView(
+                      lang: lang,
                       state: state,
                       scrollController: _scrollController,
                       onRetry: () =>
                           ref.read(searchNotifierProvider.notifier)
-                              .searchByKeyword(_controller.text),                      onClear: _clear,                      recentSearches: state.recentSearches,
+                              .searchByKeyword(_controller.text),
+                      onClear: _clear,
+                      recentSearches: state.recentSearches,
                       onRecentTap: (s) {
                         _controller.text = s;
                         _submit(s);
@@ -272,6 +301,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           .removeRecentSearch(s),
                     )
                   : _CategoryGrid(
+                      lang: lang,
                       onTap: _selectCategory,
                       emotionController: _emotionController,
                       onEmotionSubmit: _submitEmotion,
@@ -291,12 +321,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 // 카테고리 그리드 (감정 입력 섹션 포함)
 // ---------------------------------------------------------------------------
 class _CategoryGrid extends StatelessWidget {
+  final String lang;
   final void Function(_Category) onTap;
   final TextEditingController emotionController;
   final void Function(String) onEmotionSubmit;
   final void Function(String) onTagTap;
 
   const _CategoryGrid({
+    required this.lang,
     required this.onTap,
     required this.emotionController,
     required this.onEmotionSubmit,
@@ -327,7 +359,7 @@ class _CategoryGrid extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '지금 어떤 기분이에요? 💭',
+                  I18n.t(lang, 'search.emotionTitle'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -342,7 +374,7 @@ class _CategoryGrid extends StatelessWidget {
                         textInputAction: TextInputAction.search,
                         onSubmitted: onEmotionSubmit,
                         decoration: InputDecoration(
-                          hintText: '감정이나 상황을 적어보세요 (예: 지치고 힘들어)',
+                          hintText: I18n.t(lang, 'search.emotionHint'),
                           prefixIcon:
                               const Icon(Icons.mood_outlined, size: 20),
                           filled: true,
@@ -368,7 +400,7 @@ class _CategoryGrid extends StatelessWidget {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text('추천'),
+                      child: Text(I18n.t(lang, 'search.recommend')),
                     ),
                   ],
                 ),
@@ -381,14 +413,14 @@ class _CategoryGrid extends StatelessWidget {
                       .map((e) => ActionChip(
                             avatar: Text(e.$1,
                                 style: const TextStyle(fontSize: 14)),
-                            label: Text(e.$2),
+                            label: Text(_localizedSearchLabel(lang, e.$2)),
                             onPressed: () => onTagTap(e.$2),
                           ))
                       .toList(),
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  '카테고리 둘러보기',
+                  I18n.t(lang, 'search.categoryBrowse'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -404,6 +436,7 @@ class _CategoryGrid extends StatelessWidget {
             delegate: SliverChildBuilderDelegate(
               (context, i) => _CategoryCard(
                 category: _kCategories[i],
+                lang: lang,
                 onTap: () => onTap(_kCategories[i]),
               ),
               childCount: _kCategories.length,
@@ -423,9 +456,11 @@ class _CategoryGrid extends StatelessWidget {
 
 class _CategoryCard extends StatelessWidget {
   final _Category category;
+  final String lang;
   final VoidCallback onTap;
 
-  const _CategoryCard({required this.category, required this.onTap});
+  const _CategoryCard(
+      {required this.category, required this.lang, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -487,7 +522,7 @@ class _CategoryCard extends StatelessWidget {
                 left: 14,
                 right: 72,
                 child: Text(
-                  category.label,
+                  _localizedSearchLabel(lang, category.label),
                   style: theme.textTheme.titleSmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -515,6 +550,7 @@ class _CategoryCard extends StatelessWidget {
 // 검색 결과 뷰
 // ---------------------------------------------------------------------------
 class _ResultsView extends StatelessWidget {
+  final String lang;
   final SearchState state;
   final ScrollController scrollController;
   final VoidCallback onRetry;
@@ -524,6 +560,7 @@ class _ResultsView extends StatelessWidget {
   final void Function(String) onRecentDelete;
 
   const _ResultsView({
+    required this.lang,
     required this.state,
     required this.scrollController,
     required this.onRetry,
@@ -541,7 +578,7 @@ class _ResultsView extends StatelessWidget {
     return state.results.when(
       loading: () => const LoadingView(),
       error: (e, _) =>
-          ErrorView(message: '검색 중 오류가 발생했습니다.', onRetry: onRetry),
+          ErrorView(message: I18n.t(lang, 'search.error'), onRetry: onRetry),
       data: (quotes) {
         // 검색 전 상태 (아직 키워드/태그 없음)
         final isIdle = quotes.isEmpty &&
@@ -555,7 +592,7 @@ class _ResultsView extends StatelessWidget {
           child: TextButton.icon(
             onPressed: onClear,
             icon: const Icon(Icons.arrow_back_ios, size: 14),
-            label: const Text('처음으로'),
+            label: Text(I18n.t(lang, 'search.backToHome')),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             ),
@@ -568,7 +605,7 @@ class _ResultsView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 backBar,
-                const Expanded(child: EmptyView(message: '검색어나 카테고리를 선택해 보세요.')),
+                Expanded(child: EmptyView(message: I18n.t(lang, 'search.emptySelect'))),
               ],
             );
           }
@@ -578,7 +615,7 @@ class _ResultsView extends StatelessWidget {
               backBar,
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                child: Text('최근 검색',
+                child: Text(I18n.t(lang, 'search.recent'),
                     style: theme.textTheme.labelMedium
                         ?.copyWith(color: colorScheme.outline)),
               ),
@@ -610,8 +647,8 @@ class _ResultsView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               backBar,
-              const Expanded(
-                child: EmptyView(message: '관련 명언을 찾지 못했습니다.\n다른 키워드를 입력해 보세요.'),
+              Expanded(
+                child: EmptyView(message: I18n.t(lang, 'search.emptyNoResult')),
               ),
             ],
           );
@@ -633,7 +670,7 @@ class _ResultsView extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        '"${state.emotionInput}"에 어울리는 명언',
+                        '"${state.emotionInput}"${I18n.t(lang, 'search.emotionResult')}',
                         style: theme.textTheme.labelMedium?.copyWith(
                           color: colorScheme.primary,
                           fontWeight: FontWeight.w600,

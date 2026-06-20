@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/i18n.dart';
+import '../../core/theme/theme_notifier.dart';
 import 'community_repository.dart';
 
 // ---------------------------------------------------------------------------
@@ -8,21 +10,21 @@ import 'community_repository.dart';
 // ---------------------------------------------------------------------------
 
 /// 게시글 내용 유효성 검사. 문제 없으면 null, 문제 있으면 오류 메시지 반환.
-String? _validateContent(String raw) {
+String? _validateContent(String raw, String lang) {
   final trimmed = raw.trim();
 
-  if (trimmed.isEmpty) return '내용을 입력해 주세요.';
-  if (trimmed.length < 2) return '최소 2자 이상 입력해 주세요.';
-  if (trimmed.length > 300) return '300자를 초과할 수 없습니다.';
+  if (trimmed.isEmpty) return I18n.t(lang, 'postCreate.empty');
+  if (trimmed.length < 2) return I18n.t(lang, 'postCreate.min');
+  if (trimmed.length > 300) return I18n.t(lang, 'postCreate.max');
 
   // 동일 문자 반복 스팸 방지 (예: "aaaaaaa..." 20자 이상 연속)
   if (RegExp(r'(.)\1{19,}').hasMatch(trimmed)) {
-    return '의미 있는 내용을 입력해 주세요.';
+    return I18n.t(lang, 'postCreate.meaningful');
   }
 
   // 동일 단어/공백 반복 스팸 방지
   if (RegExp(r'(\S+\s*)\1{9,}').hasMatch(trimmed)) {
-    return '반복된 내용은 등록할 수 없습니다.';
+    return I18n.t(lang, 'postCreate.repeated');
   }
 
   return null;
@@ -51,15 +53,17 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
   }
 
   void _onChanged(String value) {
-    final error = _validateContent(value);
+    final lang = ref.read(themeNotifierProvider).languageCode;
+    final error = _validateContent(value, lang);
     if (_validationError != error) {
       setState(() => _validationError = error);
     }
   }
 
   Future<void> _submit() async {
+    final lang = ref.read(themeNotifierProvider).languageCode;
     final content = _controller.text.trim();
-    final error = _validateContent(content);
+    final error = _validateContent(content, lang);
     if (error != null) {
       setState(() => _validationError = error);
       return;
@@ -79,7 +83,7 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('글 작성에 실패했습니다. 잠시 후 다시 시도해 주세요.')),
+          SnackBar(content: Text(I18n.t(lang, 'postCreate.fail'))),
         );
         setState(() => _isSubmitting = false);
       }
@@ -88,13 +92,14 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(themeNotifierProvider).languageCode;
     final cs = Theme.of(context).colorScheme;
     final isValid =
         _validationError == null && _controller.text.trim().length >= 2;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('글 작성'),
+        title: Text(I18n.t(lang, 'postCreate.title')),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
@@ -107,7 +112,7 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
                 )
               : TextButton(
                   onPressed: isValid ? _submit : null,
-                  child: const Text('등록'),
+                  child: Text(I18n.t(lang, 'postCreate.submit')),
                 ),
         ],
       ),
@@ -124,7 +129,7 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
                 autofocus: true,
                 textAlignVertical: TextAlignVertical.top,
                 decoration: InputDecoration(
-                  hintText: '동기부여가 될 이야기를 나눠보세요...',
+                  hintText: I18n.t(lang, 'postCreate.hint'),
                   errorText: _validationError,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),

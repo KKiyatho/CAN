@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gal/gal.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../features/home/quote_repository.dart';
 import '../../shared/models/quote.dart';
@@ -71,30 +72,30 @@ class _WallpaperState {
 // 배경 그라디언트 12종
 // ---------------------------------------------------------------------------
 final _kBgGradients = <({String label, LinearGradient gradient})>[
-  (label: '심야 블루', gradient: const LinearGradient(colors: [Color(0xFF0F2027), Color(0xFF2C5364)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
-  (label: '딥 퍼플', gradient: const LinearGradient(colors: [Color(0xFF16213E), Color(0xFF533483)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
-  (label: '미드나잇', gradient: const LinearGradient(colors: [Color(0xFF1A1A2E), Color(0xFF0F3460)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
-  (label: '포레스트', gradient: const LinearGradient(colors: [Color(0xFF1B4332), Color(0xFF081C15)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
-  (label: '석양 노을', gradient: const LinearGradient(colors: [Color(0xFF833AB4), Color(0xFFFD1D1D)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
-  (label: '오렌지 불꽃', gradient: const LinearGradient(colors: [Color(0xFFE0303A), Color(0xFFF7971E)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
-  (label: '새벽 핑크', gradient: const LinearGradient(colors: [Color(0xFF2D3561), Color(0xFFC05C7E)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
-  (label: '에메랄드', gradient: const LinearGradient(colors: [Color(0xFF0A3D2E), Color(0xFF11998E)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
-  (label: '골든 아워', gradient: const LinearGradient(colors: [Color(0xFF1A1A2E), Color(0xFF8B6914)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
-  (label: '차콜', gradient: const LinearGradient(colors: [Color(0xFF1A1A1A), Color(0xFF3D3D3D)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
-  (label: '인디고', gradient: const LinearGradient(colors: [Color(0xFF1F1C2C), Color(0xFF928DAB)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
-  (label: '순백', gradient: const LinearGradient(colors: [Color(0xFFF5F5F5), Color(0xFFD0D0D0)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
+  (label: 'wallpaper.grad.nightBlue', gradient: const LinearGradient(colors: [Color(0xFF0F2027), Color(0xFF2C5364)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+  (label: 'wallpaper.grad.deepPurple', gradient: const LinearGradient(colors: [Color(0xFF16213E), Color(0xFF533483)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+  (label: 'wallpaper.grad.midnight', gradient: const LinearGradient(colors: [Color(0xFF1A1A2E), Color(0xFF0F3460)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
+  (label: 'wallpaper.grad.forest', gradient: const LinearGradient(colors: [Color(0xFF1B4332), Color(0xFF081C15)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
+  (label: 'wallpaper.grad.sunset', gradient: const LinearGradient(colors: [Color(0xFF833AB4), Color(0xFFFD1D1D)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+  (label: 'wallpaper.grad.flame', gradient: const LinearGradient(colors: [Color(0xFFE0303A), Color(0xFFF7971E)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+  (label: 'wallpaper.grad.dawnPink', gradient: const LinearGradient(colors: [Color(0xFF2D3561), Color(0xFFC05C7E)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+  (label: 'wallpaper.grad.emerald', gradient: const LinearGradient(colors: [Color(0xFF0A3D2E), Color(0xFF11998E)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
+  (label: 'wallpaper.grad.goldenHour', gradient: const LinearGradient(colors: [Color(0xFF1A1A2E), Color(0xFF8B6914)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
+  (label: 'wallpaper.grad.charcoal', gradient: const LinearGradient(colors: [Color(0xFF1A1A1A), Color(0xFF3D3D3D)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
+  (label: 'wallpaper.grad.indigo', gradient: const LinearGradient(colors: [Color(0xFF1F1C2C), Color(0xFF928DAB)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+  (label: 'wallpaper.grad.pureWhite', gradient: const LinearGradient(colors: [Color(0xFFF5F5F5), Color(0xFFD0D0D0)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
 ];
 
 // ---------------------------------------------------------------------------
 // 배경 이미지 목록
 // ---------------------------------------------------------------------------
 const _kBgImages = [
-  (label: '별빛 밤하늘', url: 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=800&q=80&fit=crop'),
-  (label: '안개 숲', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&q=80&fit=crop'),
-  (label: '바다 일몰', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80&fit=crop'),
-  (label: '산 정상', url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80&fit=crop'),
-  (label: '도시 야경', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&q=80&fit=crop'),
-  (label: '벚꽃', url: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=800&q=80&fit=crop'),
+  (label: 'wallpaper.img.starryNight', url: 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=800&q=80&fit=crop'),
+  (label: 'wallpaper.img.fogForest', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&q=80&fit=crop'),
+  (label: 'wallpaper.img.seaSunset', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80&fit=crop'),
+  (label: 'wallpaper.img.mountainTop', url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80&fit=crop'),
+  (label: 'wallpaper.img.cityNight', url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&q=80&fit=crop'),
+  (label: 'wallpaper.img.cherryBlossom', url: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=800&q=80&fit=crop'),
 ];
 
 // ---------------------------------------------------------------------------
@@ -135,6 +136,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
   }
 
   void _showCustomInputSheet() {
+    final lang = ref.read(themeNotifierProvider).languageCode;
     final controller =
         TextEditingController(text: _ws.customText ?? '');
     showModalBottomSheet(
@@ -156,7 +158,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '문구 직접 입력',
+              I18n.t(lang, 'wallpaper.customInputTitle'),
               style: Theme.of(context)
                   .textTheme
                   .titleMedium
@@ -169,7 +171,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
               maxLines: 4,
               autofocus: true,
               decoration: InputDecoration(
-                hintText: '원하는 문구를 입력하세요 (최대 150자)',
+                hintText: I18n.t(lang, 'wallpaper.customInputHint'),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
@@ -184,7 +186,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                           _ws.copyWith(clearCustomText: true));
                       Navigator.pop(context);
                     },
-                    child: const Text('명언으로 되돌리기'),
+                    child: Text(I18n.t(lang, 'wallpaper.restoreQuote')),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -199,7 +201,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                           ));
                       Navigator.pop(context);
                     },
-                    child: const Text('적용'),
+                    child: Text(I18n.t(lang, 'wallpaper.apply')),
                   ),
                 ),
               ],
@@ -211,11 +213,10 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
   }
 
   Future<void> _saveToGallery() async {
+    final lang = ref.read(themeNotifierProvider).languageCode;
     if (kIsWeb) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                '웹에서는 저장을 지원하지 않습니다. 모바일 앱에서 이용해 주세요.')),
+        SnackBar(content: Text(I18n.t(lang, 'wallpaper.webSaveUnsupported'))),
       );
       return;
     }
@@ -239,13 +240,13 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('갤러리에 저장됐습니다!')),
+          SnackBar(content: Text(I18n.t(lang, 'wallpaper.saved'))),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장에 실패했습니다: $e')),
+          SnackBar(content: Text('${I18n.t(lang, 'wallpaper.saveFailed')} $e')),
         );
       }
     } finally {
@@ -257,6 +258,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(themeNotifierProvider).languageCode;
     final cs = Theme.of(context).colorScheme;
     final gradient = _kBgGradients[_ws.bgGradientIndex].gradient;
     final bgImageUrl =
@@ -264,7 +266,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('배경화면'),
+        title: Text(I18n.t(lang, 'wallpaper.title')),
         centerTitle: false,
         actions: [
           IconButton(
@@ -274,12 +276,12 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                   : Icons.edit_outlined,
               color: _ws.customText != null ? cs.primary : null,
             ),
-            tooltip: '직접 입력',
+            tooltip: I18n.t(lang, 'wallpaper.customInput'),
             onPressed: _showCustomInputSheet,
           ),
           IconButton(
             icon: const Icon(Icons.shuffle_outlined),
-            tooltip: '다른 명언',
+            tooltip: I18n.t(lang, 'wallpaper.otherQuote'),
             onPressed: _loadRandomQuote,
           ),
         ],
@@ -321,7 +323,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                       Row(
                         children: [
                           _BgTabButton(
-                            label: '그라디언트',
+                            label: I18n.t(lang, 'wallpaper.gradient'),
                             icon: Icons.gradient,
                             isSelected: _bgTab == 0,
                             onTap: () => setState(() {
@@ -331,7 +333,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                           ),
                           const SizedBox(width: 8),
                           _BgTabButton(
-                            label: '이미지',
+                            label: I18n.t(lang, 'wallpaper.image'),
                             icon: Icons.image_outlined,
                             isSelected: _bgTab == 1,
                             onTap: () => setState(() {
@@ -344,12 +346,14 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                       const SizedBox(height: 12),
                       if (_bgTab == 0)
                         _BgGradientPicker(
+                          lang: lang,
                           selectedIndex: _ws.bgGradientIndex,
                           onSelect: (i) => setState(() =>
                               _ws = _ws.copyWith(bgGradientIndex: i)),
                         )
                       else
                         _BgImagePicker(
+                          lang: lang,
                           selectedIndex: _ws.bgImageIndex,
                           onSelect: (i) => setState(() =>
                               _ws = _ws.copyWith(bgImageIndex: i)),
@@ -371,8 +375,8 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                                 )
                               : const Icon(Icons.download_outlined),
                           label: Text(_ws.isSaving
-                              ? '저장 중...'
-                              : '갤러리에 저장'),
+                              ? I18n.t(lang, 'wallpaper.saving')
+                              : I18n.t(lang, 'wallpaper.save')),
                         ),
                       ),
                     ],
@@ -553,9 +557,10 @@ class _BgTabButton extends StatelessWidget {
 // ---------------------------------------------------------------------------
 class _BgGradientPicker extends StatelessWidget {
   const _BgGradientPicker(
-      {required this.selectedIndex, required this.onSelect});
+      {required this.selectedIndex, required this.onSelect, required this.lang});
   final int selectedIndex;
   final ValueChanged<int> onSelect;
+  final String lang;
 
   @override
   Widget build(BuildContext context) {
@@ -595,7 +600,7 @@ class _BgGradientPicker extends StatelessWidget {
                     )
                   : Center(
                       child: Text(
-                        item.label,
+                        I18n.t(lang, item.label),
                         style: textTheme.labelSmall?.copyWith(
                           color:
                               Colors.white.withValues(alpha: 0.85),
@@ -618,9 +623,10 @@ class _BgGradientPicker extends StatelessWidget {
 // ---------------------------------------------------------------------------
 class _BgImagePicker extends StatelessWidget {
   const _BgImagePicker(
-      {required this.selectedIndex, required this.onSelect});
+      {required this.selectedIndex, required this.onSelect, required this.lang});
   final int selectedIndex;
   final ValueChanged<int> onSelect;
+  final String lang;
 
   @override
   Widget build(BuildContext context) {
@@ -685,7 +691,7 @@ class _BgImagePicker extends StatelessWidget {
                           ),
                         ),
                         child: Text(
-                          img.label,
+                          I18n.t(lang, img.label),
                           style: textTheme.labelSmall?.copyWith(
                             color: Colors.white,
                             fontSize: 9,

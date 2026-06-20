@@ -126,22 +126,43 @@ class SearchNotifier extends Notifier<SearchState> {
       hasMore: false,
       nextOffset: 0,
     );
-    if (tags.isEmpty) {
-      // 매칭 태그 없으면 키워드로 폴백
-      await searchByKeyword(input);
-      return;
-    }
     try {
-      final page = await _repo.searchByTags(tags, language: _language);
-      if (page.quotes.isEmpty) {
-        // 태그 매칭 결과 0건 → 키워드로 재검색
-        await searchByKeyword(input);
+      // 1) 태그 검색
+      if (tags.isNotEmpty) {
+        final page = await _repo.searchByTags(tags, language: _language);
+        if (page.quotes.isNotEmpty) {
+          state = state.copyWith(
+            results: AsyncValue.data(page.quotes),
+            hasMore: page.hasMore,
+            nextOffset: page.nextOffset,
+          );
+          return;
+        }
+      }
+
+      // 2) 키워드 검색
+      final byKeyword = await _repo.searchByKeyword(input, language: _language);
+      if (byKeyword.quotes.isNotEmpty) {
+        state = state.copyWith(
+          keyword: input,
+          selectedTags: const [],
+          results: AsyncValue.data(byKeyword.quotes),
+          hasMore: byKeyword.hasMore,
+          nextOffset: byKeyword.nextOffset,
+        );
+        await _saveRecentSearch(input);
         return;
       }
+
+      // 3) 기본 추천 태그 폴백
+      final fallbackTags = TagExtractor.fallbackTags(input);
+      final byFallback =
+          await _repo.searchByTags(fallbackTags, language: _language);
       state = state.copyWith(
-        results: AsyncValue.data(page.quotes),
-        hasMore: page.hasMore,
-        nextOffset: page.nextOffset,
+        selectedTags: fallbackTags,
+        results: AsyncValue.data(byFallback.quotes),
+        hasMore: byFallback.hasMore,
+        nextOffset: byFallback.nextOffset,
       );
     } catch (e, st) {
       state = state.copyWith(results: AsyncValue.error(e, st));

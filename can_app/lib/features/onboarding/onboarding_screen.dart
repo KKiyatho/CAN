@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../app_shell.dart';
+import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
 
 const _kOnboardingDoneKey = 'onboarding_done';
@@ -28,8 +29,6 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _selectedIndex = 0;
 
-  static const _colorLabels = ['파란빛', '분홍빛', '주황빛', '초록빛', '보랏빛'];
-
   Future<void> _complete() async {
     await ref.read(themeNotifierProvider.notifier).setColor(_selectedIndex);
     final prefs = await SharedPreferences.getInstance();
@@ -43,8 +42,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = ref.watch(themeNotifierProvider).languageCode;
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final colorLabels = [
+      I18n.t(lang, 'onboarding.colorBlue'),
+      I18n.t(lang, 'onboarding.colorPink'),
+      I18n.t(lang, 'onboarding.colorOrange'),
+      I18n.t(lang, 'onboarding.colorGreen'),
+      I18n.t(lang, 'onboarding.colorPurple'),
+    ];
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -65,7 +72,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                '당신은 할 수 있습니다.\n마음에 드는 색을 고르세요.',
+                I18n.t(lang, 'onboarding.subtitle'),
                 style: textTheme.titleMedium?.copyWith(
                   color: cs.onSurfaceVariant,
                   height: 1.5,
@@ -83,7 +90,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: Text(
-                    _colorLabels[_selectedIndex],
+                    colorLabels[_selectedIndex],
                     key: ValueKey(_selectedIndex),
                     style: textTheme.bodyLarge?.copyWith(
                       color: kThemeColors[_selectedIndex],
@@ -106,7 +113,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     ),
                   ),
                   child: Text(
-                    '시작하기',
+                    I18n.t(lang, 'onboarding.start'),
                     style: textTheme.titleMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,

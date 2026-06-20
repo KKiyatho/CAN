@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../shared/models/quote.dart';
 import '../home/quote_repository.dart';
@@ -100,10 +101,11 @@ class CategoryDetailNotifier
       );
     } catch (e, st) {
       if (kDebugMode) debugPrint('[CategoryDetail] 로딩 실패 (tag=$tag): $e\n$st');
+      final lang = ref.read(themeNotifierProvider).languageCode;
       state = state.copyWith(
         isLoading: false,
         error: state.quotes.isEmpty
-            ? '명언을 불러오지 못했습니다.\n($e)'
+            ? '${I18n.t(lang, 'category.loadError')}\n($e)'
             : null,
       );
     }

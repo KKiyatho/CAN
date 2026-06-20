@@ -22,6 +22,7 @@ const { initializeApp, cert, applicationDefault } = require('firebase-admin/app'
 const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 // 자격증명 로드: 환경변수(GOOGLE_APPLICATION_CREDENTIALS) 우선,
 // 없으면 로컬 serviceAccountKey.json 폴백
@@ -96,6 +97,15 @@ function splitAuthor(raw) {
   };
 }
 
+function normalizeText(v) {
+  return String(v || '').replace(/\s+/g, ' ').trim();
+}
+
+function quoteDocId(content, author) {
+  const key = `${normalizeText(content).toLowerCase()}|${normalizeText(author).toLowerCase()}`;
+  return crypto.createHash('sha1').update(key).digest('hex').slice(0, 20);
+}
+
 // ── 태그 변환 (최대 5개) ──────────────────────────────────────────────────────
 function mapTags(englishTags, category) {
   const result = new Set();
@@ -159,8 +169,10 @@ async function seed() {
 
     for (const q of chunk) {
       const { author, source } = splitAuthor(q.Author);
-      batch.set(col.doc(), {
-        content:    q.Quote.replace(/\s+/g, ' ').trim(),
+      const content = normalizeText(q.Quote);
+      const docId = quoteDocId(content, author);
+      batch.set(col.doc(docId), {
+        content,
         author,
         source,
         language:   'en',
@@ -168,7 +180,7 @@ async function seed() {
         tags:       mapTags(q.Tags, q.Category),
         popularity: q.Popularity || 0,
         createdAt:  Timestamp.now(),
-      });
+      }, { merge: true });
     }
 
     await batch.commit();
