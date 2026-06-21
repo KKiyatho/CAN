@@ -245,6 +245,18 @@ class _TopPostCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
+          if (post.title.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                post.title,
+                style: textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           Expanded(
             child: Text(
               post.content,
@@ -304,6 +316,16 @@ class _PostCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (post.title.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  post.title,
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             Text(post.content, style: textTheme.bodyMedium),
             const SizedBox(height: 12),
             Row(

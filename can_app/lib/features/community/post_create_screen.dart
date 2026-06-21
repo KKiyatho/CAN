@@ -30,6 +30,13 @@ String? _validateContent(String raw, String lang) {
   return null;
 }
 
+String? _validateTitle(String raw, String lang) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return I18n.t(lang, 'postCreate.titleEmpty');
+  if (trimmed.length > 60) return I18n.t(lang, 'postCreate.titleMax');
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // PostCreateScreen — 글 작성 화면
 // ---------------------------------------------------------------------------
@@ -42,14 +49,25 @@ class PostCreateScreen extends ConsumerStatefulWidget {
 }
 
 class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
+  final _titleController = TextEditingController();
   final _controller = TextEditingController();
   bool _isSubmitting = false;
   String? _validationError;
+  String? _titleValidationError;
 
   @override
   void dispose() {
+    _titleController.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onTitleChanged(String value) {
+    final lang = ref.read(themeNotifierProvider).languageCode;
+    final error = _validateTitle(value, lang);
+    if (_titleValidationError != error) {
+      setState(() => _titleValidationError = error);
+    }
   }
 
   void _onChanged(String value) {
@@ -62,8 +80,14 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
 
   Future<void> _submit() async {
     final lang = ref.read(themeNotifierProvider).languageCode;
+    final title = _titleController.text.trim();
     final content = _controller.text.trim();
+    final titleError = _validateTitle(title, lang);
     final error = _validateContent(content, lang);
+    if (titleError != null) {
+      setState(() => _titleValidationError = titleError);
+      return;
+    }
     if (error != null) {
       setState(() => _validationError = error);
       return;
@@ -72,11 +96,13 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
     setState(() {
       _isSubmitting = true;
       _validationError = null;
+      _titleValidationError = null;
     });
 
     try {
       await ref.read(communityRepositoryProvider).createPost(
             userId: widget.userId,
+        title: title,
             content: content,
           );
       if (mounted) Navigator.of(context).pop();
@@ -95,7 +121,10 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
     final lang = ref.watch(themeNotifierProvider).languageCode;
     final cs = Theme.of(context).colorScheme;
     final isValid =
-        _validationError == null && _controller.text.trim().length >= 2;
+      _titleValidationError == null &&
+      _validationError == null &&
+      _titleController.text.trim().isNotEmpty &&
+      _controller.text.trim().length >= 2;
 
     return Scaffold(
       appBar: AppBar(
@@ -120,6 +149,21 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            TextField(
+              controller: _titleController,
+              maxLength: 60,
+              decoration: InputDecoration(
+                hintText: I18n.t(lang, 'postCreate.titleHint'),
+                errorText: _titleValidationError,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: cs.outline),
+                ),
+                contentPadding: const EdgeInsets.all(16),
+              ),
+              onChanged: _onTitleChanged,
+            ),
+            const SizedBox(height: 12),
             Expanded(
               child: TextField(
                 controller: _controller,

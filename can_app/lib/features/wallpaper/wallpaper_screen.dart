@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gal/gal.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
@@ -20,7 +19,11 @@ class _WallpaperState {
   final String? customText; // null=명언, non-null=직접 입력
   final int bgGradientIndex;
   final int bgImageIndex;
+  final int bgSolidIndex;
+  final int textColorIndex;
   final bool useImage;
+  final bool useSolid;
+  final bool showPropertyPanel;
   final bool isLoading;
   final bool isSaving;
 
@@ -29,7 +32,11 @@ class _WallpaperState {
     this.customText,
     this.bgGradientIndex = 0,
     this.bgImageIndex = 0,
+    this.bgSolidIndex = 0,
+    this.textColorIndex = 0,
     this.useImage = false,
+    this.useSolid = false,
+    this.showPropertyPanel = true,
     this.isLoading = false,
     this.isSaving = false,
   });
@@ -40,7 +47,11 @@ class _WallpaperState {
     bool clearCustomText = false,
     int? bgGradientIndex,
     int? bgImageIndex,
+    int? bgSolidIndex,
+    int? textColorIndex,
     bool? useImage,
+    bool? useSolid,
+    bool? showPropertyPanel,
     bool? isLoading,
     bool? isSaving,
   }) =>
@@ -50,7 +61,11 @@ class _WallpaperState {
             clearCustomText ? null : (customText ?? this.customText),
         bgGradientIndex: bgGradientIndex ?? this.bgGradientIndex,
         bgImageIndex: bgImageIndex ?? this.bgImageIndex,
+        bgSolidIndex: bgSolidIndex ?? this.bgSolidIndex,
+        textColorIndex: textColorIndex ?? this.textColorIndex,
         useImage: useImage ?? this.useImage,
+        useSolid: useSolid ?? this.useSolid,
+        showPropertyPanel: showPropertyPanel ?? this.showPropertyPanel,
         isLoading: isLoading ?? this.isLoading,
         isSaving: isSaving ?? this.isSaving,
       );
@@ -61,11 +76,6 @@ class _WallpaperState {
     return '';
   }
 
-  String get authorText {
-    if (customText != null && customText!.isNotEmpty) return '';
-    if (quote != null) return '— ${quote!.author}';
-    return '';
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -98,6 +108,24 @@ const _kBgImages = [
   (label: 'wallpaper.img.cherryBlossom', url: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?w=800&q=80&fit=crop'),
 ];
 
+final _kBgSolidColors = <({String label, Color color})>[
+  (label: 'wallpaper.solid.charcoal', color: Color(0xFF1F1F1F)),
+  (label: 'wallpaper.solid.navy', color: Color(0xFF1B263B)),
+  (label: 'wallpaper.solid.forest', color: Color(0xFF1B4332)),
+  (label: 'wallpaper.solid.cream', color: Color(0xFFF3EFE5)),
+  (label: 'wallpaper.solid.sky', color: Color(0xFFEAF2FF)),
+  (label: 'wallpaper.solid.pink', color: Color(0xFFF8E8EE)),
+];
+
+final _kTextColors = <Color>[
+  const Color(0xFFFFFFFF),
+  const Color(0xFFF1F5F9),
+  const Color(0xFFFDE68A),
+  const Color(0xFF111827),
+  const Color(0xFF334155),
+  const Color(0xFF7F1D1D),
+];
+
 // ---------------------------------------------------------------------------
 // WallpaperScreen
 // ---------------------------------------------------------------------------
@@ -111,7 +139,7 @@ class WallpaperScreen extends ConsumerStatefulWidget {
 class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
   _WallpaperState _ws = const _WallpaperState(isLoading: true);
   final _repaintKey = GlobalKey();
-  int _bgTab = 0; // 0=그라디언트, 1=이미지
+  int _bgTab = 0; // 0=그라디언트, 1=이미지, 2=단색
 
   @override
   void initState() {
@@ -263,6 +291,10 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
     final gradient = _kBgGradients[_ws.bgGradientIndex].gradient;
     final bgImageUrl =
         _ws.useImage ? _kBgImages[_ws.bgImageIndex].url : null;
+    final bgSolidColor = _ws.useSolid
+      ? _kBgSolidColors[_ws.bgSolidIndex].color
+      : null;
+    final quoteTextColor = _kTextColors[_ws.textColorIndex];
 
     return Scaffold(
       appBar: AppBar(
@@ -288,38 +320,61 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
       ),
       body: _ws.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
+          : Stack(
               children: [
-                Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: AspectRatio(
-                        aspectRatio: 9 / 16,
-                        child: RepaintBoundary(
-                          key: _repaintKey,
-                          child: _WallpaperCanvas(
-                            displayText: _ws.displayText,
-                            authorText: _ws.authorText,
-                            gradient: gradient,
-                            bgImageUrl: bgImageUrl,
+                Column(
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: AspectRatio(
+                            aspectRatio: 9 / 16,
+                            child: RepaintBoundary(
+                              key: _repaintKey,
+                              child: _WallpaperCanvas(
+                                displayText: _ws.displayText,
+                                gradient: gradient,
+                                bgImageUrl: bgImageUrl,
+                                bgSolidColor: bgSolidColor,
+                                textColor: quoteTextColor,
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest,
-                    borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(20)),
-                  ),
-                  padding:
-                      const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    if (_ws.showPropertyPanel)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHighest,
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(20)),
+                        ),
+                        padding:
+                            const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  I18n.t(lang, 'wallpaper.title'),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                const Spacer(),
+                                IconButton(
+                                  onPressed: () => setState(() => _ws =
+                                      _ws.copyWith(showPropertyPanel: false)),
+                                  icon: const Icon(Icons.keyboard_arrow_down),
+                                  tooltip: I18n.t(lang, 'wallpaper.closeEditor'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
                       Row(
                         children: [
                           _BgTabButton(
@@ -328,7 +383,10 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                             isSelected: _bgTab == 0,
                             onTap: () => setState(() {
                               _bgTab = 0;
-                              _ws = _ws.copyWith(useImage: false);
+                              _ws = _ws.copyWith(
+                                useImage: false,
+                                useSolid: false,
+                              );
                             }),
                           ),
                           const SizedBox(width: 8),
@@ -338,7 +396,23 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                             isSelected: _bgTab == 1,
                             onTap: () => setState(() {
                               _bgTab = 1;
-                              _ws = _ws.copyWith(useImage: true);
+                              _ws = _ws.copyWith(
+                                useImage: true,
+                                useSolid: false,
+                              );
+                            }),
+                          ),
+                          const SizedBox(width: 8),
+                          _BgTabButton(
+                            label: I18n.t(lang, 'wallpaper.solid'),
+                            icon: Icons.circle_outlined,
+                            isSelected: _bgTab == 2,
+                            onTap: () => setState(() {
+                              _bgTab = 2;
+                              _ws = _ws.copyWith(
+                                useImage: false,
+                                useSolid: true,
+                              );
                             }),
                           ),
                         ],
@@ -351,13 +425,34 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                           onSelect: (i) => setState(() =>
                               _ws = _ws.copyWith(bgGradientIndex: i)),
                         )
-                      else
+                      else if (_bgTab == 1)
                         _BgImagePicker(
                           lang: lang,
                           selectedIndex: _ws.bgImageIndex,
                           onSelect: (i) => setState(() =>
                               _ws = _ws.copyWith(bgImageIndex: i)),
+                        )
+                      else
+                        _BgSolidPicker(
+                          lang: lang,
+                          selectedIndex: _ws.bgSolidIndex,
+                          onSelect: (i) => setState(() =>
+                              _ws = _ws.copyWith(bgSolidIndex: i)),
                         ),
+                      const SizedBox(height: 14),
+                      Text(
+                        I18n.t(lang, 'wallpaper.textColor'),
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelLarge
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      _TextColorPicker(
+                        selectedIndex: _ws.textColorIndex,
+                        onSelect: (i) =>
+                            setState(() => _ws = _ws.copyWith(textColorIndex: i)),
+                      ),
                       const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
@@ -379,9 +474,23 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
                               : I18n.t(lang, 'wallpaper.save')),
                         ),
                       ),
-                    ],
-                  ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
+                if (!_ws.showPropertyPanel)
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: FloatingActionButton.small(
+                      heroTag: 'wallpaper_open_editor',
+                      onPressed: () => setState(
+                          () => _ws = _ws.copyWith(showPropertyPanel: true)),
+                      tooltip: I18n.t(lang, 'wallpaper.openEditor'),
+                      child: const Icon(Icons.tune),
+                    ),
+                  ),
               ],
             ),
     );
@@ -394,59 +503,36 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
 class _WallpaperCanvas extends StatelessWidget {
   const _WallpaperCanvas({
     required this.displayText,
-    required this.authorText,
     required this.gradient,
+    required this.textColor,
     this.bgImageUrl,
+    this.bgSolidColor,
   });
 
   final String displayText;
-  final String authorText;
   final LinearGradient gradient;
+  final Color textColor;
   final String? bgImageUrl;
+  final Color? bgSolidColor;
 
-  TextStyle _quoteTextStyle(Color color) {
-    if (kIsWeb) {
-      return TextStyle(
-        fontSize: 16,
-        color: color,
-        height: 1.8,
-        fontWeight: FontWeight.w500,
-        fontFamily: 'serif',
-      );
-    }
-    return GoogleFonts.notoSerifKr(
+  TextStyle _quoteTextStyle() {
+    return TextStyle(
       fontSize: 16,
-      color: color,
+      color: textColor,
       height: 1.8,
       fontWeight: FontWeight.w500,
-    );
-  }
-
-  TextStyle _authorTextStyle(Color color) {
-    if (kIsWeb) {
-      return TextStyle(
-        fontSize: 12,
-        color: color,
-        fontStyle: FontStyle.italic,
-        fontFamily: 'serif',
-      );
-    }
-    return GoogleFonts.notoSerifKr(
-      fontSize: 12,
-      color: color,
-      fontStyle: FontStyle.italic,
+      fontFamily: 'Batang',
+      fontFamilyFallback: const [
+        'BatangChe',
+        'NanumMyeongjo',
+        'Noto Serif KR',
+        'serif'
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isLight = bgImageUrl == null &&
-        gradient.colors.first.computeLuminance() > 0.4;
-    final textColor = isLight ? Colors.black87 : Colors.white;
-    final subColor = isLight
-        ? Colors.black.withValues(alpha: 0.55)
-        : Colors.white.withValues(alpha: 0.65);
-
     Widget bg;
     if (bgImageUrl != null) {
       bg = Stack(
@@ -469,6 +555,8 @@ class _WallpaperCanvas extends StatelessWidget {
           ),
         ],
       );
+    } else if (bgSolidColor != null) {
+      bg = Container(color: bgSolidColor);
     } else {
       bg = Container(decoration: BoxDecoration(gradient: gradient));
     }
@@ -485,7 +573,6 @@ class _WallpaperCanvas extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 명언 — FittedBox로 자동 크기 조절
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.center,
@@ -495,22 +582,120 @@ class _WallpaperCanvas extends StatelessWidget {
                     child: Text(
                       displayText,
                       textAlign: TextAlign.center,
-                      style: _quoteTextStyle(textColor),
+                      style: _quoteTextStyle(),
                     ),
                   ),
                 ),
-                if (authorText.isNotEmpty) ...[
-                  const SizedBox(height: 18),
-                  Text(
-                    authorText,
-                    textAlign: TextAlign.center,
-                    style: _authorTextStyle(subColor),
-                  ),
-                ],
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TextColorPicker extends StatelessWidget {
+  const _TextColorPicker({required this.selectedIndex, required this.onSelect});
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return SizedBox(
+      height: 42,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _kTextColors.length,
+        itemBuilder: (_, i) {
+          final isSelected = i == selectedIndex;
+          return GestureDetector(
+            onTap: () => onSelect(i),
+            child: Container(
+              width: 34,
+              margin: const EdgeInsets.only(right: 10),
+              decoration: BoxDecoration(
+                color: _kTextColors[i],
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected
+                      ? cs.primary
+                      : cs.outline.withValues(alpha: 0.35),
+                  width: isSelected ? 2.5 : 1,
+                ),
+              ),
+              child: isSelected
+                  ? Icon(Icons.check, size: 14, color: cs.primary)
+                  : null,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _BgSolidPicker extends StatelessWidget {
+  const _BgSolidPicker(
+      {required this.selectedIndex, required this.onSelect, required this.lang});
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
+  final String lang;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return SizedBox(
+      height: 56,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _kBgSolidColors.length,
+        itemBuilder: (_, i) {
+          final item = _kBgSolidColors[i];
+          final isSelected = i == selectedIndex;
+          return GestureDetector(
+            onTap: () => onSelect(i),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              margin: const EdgeInsets.only(right: 8),
+              width: isSelected ? 68 : 52,
+              decoration: BoxDecoration(
+                color: item.color,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isSelected ? cs.primary : Colors.transparent,
+                  width: 2.5,
+                ),
+              ),
+              child: isSelected
+                  ? Center(
+                      child: Icon(
+                        Icons.check,
+                        color: item.color.computeLuminance() > 0.65
+                            ? Colors.black87
+                            : Colors.white.withValues(alpha: 0.92),
+                        size: 18,
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        I18n.t(lang, item.label),
+                        style: textTheme.labelSmall?.copyWith(
+                          color: item.color.computeLuminance() > 0.65
+                              ? Colors.black87
+                              : Colors.white.withValues(alpha: 0.9),
+                          fontSize: 8,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                      ),
+                    ),
+            ),
+          );
+        },
       ),
     );
   }

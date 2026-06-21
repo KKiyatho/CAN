@@ -18,15 +18,19 @@ service cloud.firestore {
       //   2) userId 필드 = 자신의 UID (위조 방지)
       //   3) likeCount 는 반드시 0 으로 시작 (초기값 조작 방지)
       //   4) content 길이: 1~300자 (빈 글 / 스팸 방지)
+       //   5) title 길이: 1~60자
       //   5) 허용 필드만 존재해야 함 (추가 필드 인젝션 방지)
       allow create: if request.auth != null
                     && request.resource.data.userId == request.auth.uid
                     && request.resource.data.likeCount == 0
+            && request.resource.data.title is string
+            && request.resource.data.title.size() >= 1
+            && request.resource.data.title.size() <= 60
                     && request.resource.data.content is string
                     && request.resource.data.content.size() >= 1
                     && request.resource.data.content.size() <= 300
                     && request.resource.data.keys()
-                         .hasOnly(['userId', 'quoteId', 'content', 'likeCount', 'createdAt']);
+              .hasOnly(['userId', 'quoteId', 'title', 'content', 'likeCount', 'createdAt']);
 
       // 글 수정: likeCount 단 한 필드만 ±1 범위 내 변경만 허용
       //   - 클라이언트가 likeCount 를 임의 값으로 직접 설정하지 못하도록 제한

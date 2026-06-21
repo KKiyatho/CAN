@@ -46,11 +46,16 @@ class CommunityRepository {
   // ── 글 작성 ────────────────────────────────────────────────────────────
   Future<void> createPost({
     required String userId,
+    required String title,
     required String content,
     String? quoteId,
   }) async {
     // 서버측 검증 (Firestore Rules 와 이중 방어)
+    final trimmedTitle = title.trim();
     final trimmed = content.trim();
+    if (trimmedTitle.isEmpty || trimmedTitle.length > 60) {
+      throw ArgumentError('title 길이가 유효하지 않습니다.');
+    }
     if (trimmed.isEmpty || trimmed.length < 2 || trimmed.length > 300) {
       throw ArgumentError('content 길이가 유효하지 않습니다.');
     }
@@ -59,6 +64,7 @@ class CommunityRepository {
     await _db.collection(_postsCol).add({
       'userId': userId,
       if (quoteId != null) 'quoteId': quoteId,
+      'title': trimmedTitle,
       'content': trimmed,
       'likeCount': 0,
       'createdAt': FieldValue.serverTimestamp(),

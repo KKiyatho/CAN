@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_shell.dart';
+import 'core/firebase/auth_providers.dart';
 import 'core/theme/theme_notifier.dart';
+import 'features/auth/login_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'firebase_options.dart';
 
@@ -28,6 +30,7 @@ class CanApp extends ConsumerWidget {
 
     final themeState = ref.watch(themeNotifierProvider);
     final themeData = buildThemeData(themeState);
+    final authAsync = ref.watch(authStateProvider);
 
     // 온보딩 완료 여부를 비동기로 확인
     final onboardingAsync = ref.watch(onboardingDoneProvider);
@@ -37,10 +40,17 @@ class CanApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: themeData,
       themeAnimationDuration: Duration.zero,
-      home: onboardingAsync.when(
-        data: (done) => done ? const AppShell() : const OnboardingScreen(),
+      home: authAsync.when(
+        data: (user) {
+          if (user == null) return const LoginScreen();
+          return onboardingAsync.when(
+            data: (done) => done ? const AppShell() : const OnboardingScreen(),
+            loading: () => const _SplashScreen(),
+            error: (_, __) => const AppShell(),
+          );
+        },
         loading: () => const _SplashScreen(),
-        error: (_, __) => const AppShell(), // 에러 시 온보딩 건너뜀
+        error: (_, __) => const LoginScreen(),
       ),
     );
   }
