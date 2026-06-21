@@ -46,6 +46,9 @@ class CommunityRepository {
   // ── 글 작성 ────────────────────────────────────────────────────────────
   Future<void> createPost({
     required String userId,
+    required String displayName,
+    required String avatarEmoji,
+    String? avatarImageDataUrl,
     required String title,
     required String content,
     String? quoteId,
@@ -64,6 +67,10 @@ class CommunityRepository {
     try {
       await _db.collection(_postsCol).add({
         'userId': userId,
+        'displayName': displayName.trim().isEmpty ? 'Guest' : displayName.trim(),
+        'avatarEmoji': avatarEmoji.trim().isEmpty ? '🐣' : avatarEmoji.trim(),
+        if (avatarImageDataUrl != null && avatarImageDataUrl.isNotEmpty)
+          'avatarImageDataUrl': avatarImageDataUrl,
         if (quoteId != null) 'quoteId': quoteId,
         'title': trimmedTitle,
         'content': trimmed,
@@ -75,6 +82,10 @@ class CommunityRepository {
       if (e.code != 'permission-denied') rethrow;
       await _db.collection(_postsCol).add({
         'userId': userId,
+        'displayName': displayName.trim().isEmpty ? 'Guest' : displayName.trim(),
+        'avatarEmoji': avatarEmoji.trim().isEmpty ? '🐣' : avatarEmoji.trim(),
+        if (avatarImageDataUrl != null && avatarImageDataUrl.isNotEmpty)
+          'avatarImageDataUrl': avatarImageDataUrl,
         if (quoteId != null) 'quoteId': quoteId,
         'content': '[$trimmedTitle]\n$trimmed',
         'likeCount': 0,

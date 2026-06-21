@@ -6,6 +6,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class CommunityPost {
   final String id;
   final String userId;
+  final String displayName;
+  final String avatarEmoji;
+  final String? avatarImageDataUrl;
   final String? quoteId;
   final String title;
   final String content;
@@ -16,6 +19,9 @@ class CommunityPost {
   const CommunityPost({
     required this.id,
     required this.userId,
+    required this.displayName,
+    required this.avatarEmoji,
+    this.avatarImageDataUrl,
     this.quoteId,
     required this.title,
     required this.content,
@@ -43,6 +49,11 @@ class CommunityPost {
     return CommunityPost(
       id: doc.id,
       userId: data['userId'] as String? ?? '',
+      displayName: (data['displayName'] as String? ?? 'Guest').trim(),
+      avatarEmoji: (data['avatarEmoji'] as String? ?? '🐣').trim().isEmpty
+          ? '🐣'
+          : (data['avatarEmoji'] as String? ?? '🐣').trim(),
+      avatarImageDataUrl: (data['avatarImageDataUrl'] as String?)?.trim(),
       quoteId: data['quoteId'] as String?,
       title: resolvedTitle,
       content: resolvedContent,
@@ -53,6 +64,9 @@ class CommunityPost {
 
   Map<String, dynamic> toMap() => {
         'userId': userId,
+        'displayName': displayName,
+        'avatarEmoji': avatarEmoji,
+        if (avatarImageDataUrl != null) 'avatarImageDataUrl': avatarImageDataUrl,
         if (quoteId != null) 'quoteId': quoteId,
       'title': title,
         'content': content,
@@ -67,6 +81,9 @@ class CommunityPost {
       CommunityPost(
         id: id,
         userId: userId,
+        displayName: displayName,
+        avatarEmoji: avatarEmoji,
+        avatarImageDataUrl: avatarImageDataUrl,
         quoteId: quoteId,
         title: title,
         content: content,

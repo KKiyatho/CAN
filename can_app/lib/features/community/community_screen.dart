@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -235,6 +238,21 @@ class _TopPostCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              _CommunityAvatar(post: post, radius: 10),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  post.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.labelSmall,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
           Text(
             lang == 'en'
                 ? '#$rank'
@@ -316,6 +334,23 @@ class _PostCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                _CommunityAvatar(post: post, radius: 14),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    post.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             if (post.title.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
@@ -365,5 +400,41 @@ class _PostCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _CommunityAvatar extends StatelessWidget {
+  final CommunityPost post;
+  final double radius;
+
+  const _CommunityAvatar({required this.post, required this.radius});
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = _decodeDataUrl(post.avatarImageDataUrl);
+    if (bytes != null) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundImage: MemoryImage(bytes),
+      );
+    }
+    return CircleAvatar(
+      radius: radius,
+      child: Text(
+        post.avatarEmoji.isEmpty ? '🐣' : post.avatarEmoji,
+        style: TextStyle(fontSize: radius),
+      ),
+    );
+  }
+
+  Uint8List? _decodeDataUrl(String? dataUrl) {
+    if (dataUrl == null || dataUrl.isEmpty) return null;
+    final idx = dataUrl.indexOf(',');
+    if (idx < 0 || idx == dataUrl.length - 1) return null;
+    try {
+      return base64Decode(dataUrl.substring(idx + 1));
+    } catch (_) {
+      return null;
+    }
   }
 }

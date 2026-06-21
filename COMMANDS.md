@@ -21,6 +21,19 @@ flutter run -d chrome
 **핫 리스타트** (실행 중 터미널에서): `R`  
 **종료**: `q`
 
+### 운영 웹사이트 (Azure 배포)
+
+- URL: https://canweb125962.z7.web.core.windows.net/
+- 로그인/프로필 확인 주소: https://canweb125962.z7.web.core.windows.net/
+
+```powershell
+# 브라우저로 바로 열기
+start https://canweb125962.z7.web.core.windows.net/
+
+# 상태 확인
+curl -I https://canweb125962.z7.web.core.windows.net/
+```
+
 ---
 
 ## 📱 Android/iOS 테스트
@@ -122,9 +135,31 @@ npx --yes firebase-tools deploy --only firestore:rules
 Firebase Console에서 아래도 반드시 확인:
 
 1. Authentication > Sign-in method > Anonymous 활성화
-2. Authentication > Sign-in method > Google/Facebook 활성화
+2. Authentication > Sign-in method > Google 활성화
 3. Authentication > Settings > Authorized domains에 `localhost` 포함 (웹 개발 시)
 4. Firestore Database가 Native mode로 생성되어 있는지 확인
+
+### OAuth 차단 오류 해결 (This domain is not authorized...)
+
+운영 웹사이트에서 Google 로그인 시 아래 오류가 나오면,
+Authentication 허용 도메인에 배포 도메인을 추가해야 합니다.
+
+```text
+This domain is not authorized for OAuth operations for your Firebase project.
+```
+
+설정 경로:
+
+1. Firebase Console > Authentication > Settings > Authorized domains
+2. Add domain 클릭
+3. 아래 도메인 추가
+
+```text
+canweb125962.z7.web.core.windows.net
+localhost
+```
+
+반영 후 브라우저 캐시를 비우고 새로고침(또는 시크릿 모드)한 뒤 다시 로그인 시도합니다.
 
 ---
 

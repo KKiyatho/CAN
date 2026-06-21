@@ -1,5 +1,6 @@
 ﻿import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,6 +55,7 @@ class CanApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: themeData,
       themeAnimationDuration: Duration.zero,
+      builder: (context, child) => _MobileViewport(child: child ?? const SizedBox.shrink()),
       home: authAsync.when(
         data: (user) {
           if (user == null) return const LoginScreen();
@@ -65,6 +67,39 @@ class CanApp extends ConsumerWidget {
         },
         loading: () => const _SplashScreen(),
         error: (_, __) => const LoginScreen(),
+      ),
+    );
+  }
+}
+
+class _MobileViewport extends StatelessWidget {
+  const _MobileViewport({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!kIsWeb) return child;
+
+    return ColoredBox(
+      color: const Color(0xFFF2F4F8),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x22000000),
+                  blurRadius: 24,
+                  offset: Offset(0, 8),
+                ),
+              ],
+            ),
+            child: child,
+          ),
+        ),
       ),
     );
   }

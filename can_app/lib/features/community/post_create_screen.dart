@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/firebase/auth_providers.dart';
 import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
+import '../profile/profile_repository.dart';
 import 'community_repository.dart';
 
 // ---------------------------------------------------------------------------
@@ -101,10 +102,18 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
     });
 
     try {
-      final currentUid = ref.read(firebaseAuthProvider).currentUser?.uid;
+      final authUser = ref.read(firebaseAuthProvider).currentUser;
+      final currentUid = authUser?.uid;
       final effectiveUid = currentUid ?? widget.userId;
+      final profileRepo = ref.read(profileRepositoryProvider);
+      final effectiveProfile = authUser == null
+          ? null
+          : await profileRepo.resolveEffectiveProfile(authUser);
       await ref.read(communityRepositoryProvider).createPost(
         userId: effectiveUid,
+        displayName: effectiveProfile?.displayName ?? 'Guest',
+        avatarEmoji: effectiveProfile?.avatarEmoji ?? '🐣',
+        avatarImageDataUrl: effectiveProfile?.avatarImageDataUrl,
         title: title,
             content: content,
           );

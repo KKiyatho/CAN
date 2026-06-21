@@ -1,8 +1,9 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/firebase/auth_providers.dart';
@@ -21,6 +22,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isSubmitting = false;
   bool _isRegisterMode = false;
+
+  String _authErrorMessage(FirebaseAuthException e) {
+    final lang = ref.read(themeNotifierProvider).languageCode;
+
+    switch (e.code) {
+      case 'popup-closed-by-user':
+      case 'cancelled-popup-request':
+        return I18n.t(lang, 'login.popupCanceled');
+      case 'unauthorized-domain':
+        return I18n.t(lang, 'login.unauthorizedDomain');
+      default:
+        return e.message ?? e.code;
+    }
+  }
 
   @override
   void dispose() {
@@ -74,15 +89,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
     try {
       final auth = ref.read(firebaseAuthProvider);
       if (kIsWeb) {
-        await auth.signInWithPopup(GoogleAuthProvider());
+        await auth
+            .signInWithPopup(GoogleAuthProvider())
+            .timeout(const Duration(seconds: 90));
       } else {
         final googleSignIn = GoogleSignIn();
         final googleUser = await googleSignIn.signIn();
-        if (googleUser == null) return;
+        if (googleUser == null) {
+          _showError(
+              I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.popupCanceled'));
+          return;
+        }
         final googleAuth = await googleUser.authentication;
         final credential = GoogleAuthProvider.credential(
           accessToken: googleAuth.accessToken,
@@ -91,40 +113,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await auth.signInWithCredential(credential);
       }
     } on FirebaseAuthException catch (e) {
-      _showError(e.message ?? e.code);
+      _showError(_authErrorMessage(e));
+    } on TimeoutException {
+      _showError('로그인 응답이 지연되고 있습니다. 다시 시도해 주세요.');
     } on AssertionError {
       _showError('Google 로그인 설정이 누락되었습니다. Firebase Authentication의 Google 공급자 설정을 확인해 주세요.');
-    } catch (e) {
-      _showError(e.toString());
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
-  }
-
-  Future<void> _signInWithFacebook() async {
-    setState(() => _isSubmitting = true);
-    try {
-      final auth = ref.read(firebaseAuthProvider);
-      if (kIsWeb) {
-        await auth.signInWithPopup(FacebookAuthProvider());
-      } else {
-        final result = await FacebookAuth.instance.login();
-        if (result.status != LoginStatus.success) {
-          _showError(I18n.t(ref.read(themeNotifierProvider).languageCode,
-              'login.facebookCanceled'));
-          return;
-        }
-        final token = result.accessToken?.tokenString;
-        if (token == null) {
-          _showError(I18n.t(ref.read(themeNotifierProvider).languageCode,
-              'login.facebookCanceled'));
-          return;
-        }
-        final credential = FacebookAuthProvider.credential(token);
-        await auth.signInWithCredential(credential);
-      }
-    } on FirebaseAuthException catch (e) {
-      _showError(e.message ?? e.code);
     } catch (e) {
       _showError(e.toString());
     } finally {
@@ -171,16 +164,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   onPressed: _isSubmitting ? null : _signInWithGoogle,
                   icon: const Icon(Icons.g_mobiledata, size: 24),
                   label: Text(I18n.t(lang, 'login.google')),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: _isSubmitting ? null : _signInWithFacebook,
-                  icon: const Icon(Icons.facebook),
-                  label: Text(I18n.t(lang, 'login.facebook')),
                 ),
               ),
               const SizedBox(height: 12),

@@ -26,11 +26,30 @@ service cloud.firestore {
             && request.resource.data.title is string
             && request.resource.data.title.size() >= 1
             && request.resource.data.title.size() <= 60
+                    && request.resource.data.displayName is string
+                    && request.resource.data.displayName.size() >= 1
+                    && request.resource.data.displayName.size() <= 20
+                    && request.resource.data.avatarEmoji is string
+                    && request.resource.data.avatarEmoji.size() >= 1
+                    && request.resource.data.avatarEmoji.size() <= 8
+                    && (!('avatarImageDataUrl' in request.resource.data)
+                        || (request.resource.data.avatarImageDataUrl is string
+                            && request.resource.data.avatarImageDataUrl.size() <= 200000))
                     && request.resource.data.content is string
                     && request.resource.data.content.size() >= 1
                     && request.resource.data.content.size() <= 300
                     && request.resource.data.keys()
-              .hasOnly(['userId', 'quoteId', 'title', 'content', 'likeCount', 'createdAt']);
+              .hasOnly([
+                'userId',
+                'displayName',
+                'avatarEmoji',
+                'avatarImageDataUrl',
+                'quoteId',
+                'title',
+                'content',
+                'likeCount',
+                'createdAt'
+              ]);
 
       // 글 수정: likeCount 단 한 필드만 ±1 범위 내 변경만 허용
       //   - 클라이언트가 likeCount 를 임의 값으로 직접 설정하지 못하도록 제한
@@ -63,6 +82,33 @@ service cloud.firestore {
         // update 는 불필요하므로 명시적으로 거부
         allow update: if false;
       }
+    }
+
+    // ── users 프로필 ────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if request.auth != null;
+
+      allow create, update: if request.auth != null
+                            && request.auth.uid == userId
+                            && request.resource.data.uid == request.auth.uid
+                            && request.resource.data.displayName is string
+                            && request.resource.data.displayName.size() >= 1
+                            && request.resource.data.displayName.size() <= 20
+                            && request.resource.data.avatarEmoji is string
+                            && request.resource.data.avatarEmoji.size() >= 1
+                            && request.resource.data.avatarEmoji.size() <= 8
+                            && (!('avatarImageDataUrl' in request.resource.data)
+                                || (request.resource.data.avatarImageDataUrl is string
+                                    && request.resource.data.avatarImageDataUrl.size() <= 200000))
+                            && request.resource.data.keys().hasOnly([
+                              'uid',
+                              'displayName',
+                              'avatarEmoji',
+                              'avatarImageDataUrl',
+                              'updatedAt'
+                            ]);
+
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

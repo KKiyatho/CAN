@@ -577,6 +577,58 @@ class QuoteRepository {
       nextOffset: page.nextOffset,
     );
   }
+
+  Future<List<Quote>> fetchQuotesByIds(
+    Iterable<String> quoteIds, {
+    String language = 'all',
+  }) async {
+    final orderedIds = quoteIds
+        .where((id) => id.trim().isNotEmpty)
+        .toList(growable: false);
+    if (orderedIds.isEmpty) return const [];
+
+    final map = <String, Quote>{};
+
+    final missing = <String>[];
+    for (var i = 0; i < orderedIds.length; i += 10) {
+      final chunk = orderedIds.skip(i).take(10).toList();
+      try {
+        final snap = await _db
+            .collection('quotes')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        for (final doc in snap.docs) {
+          final quote = Quote.fromFirestore(doc);
+          map[quote.id] = quote;
+        }
+      } catch (_) {
+        missing.addAll(chunk);
+      }
+    }
+
+    final unresolved = orderedIds.where((id) => !map.containsKey(id)).toSet()
+      ..addAll(missing);
+    if (unresolved.isNotEmpty) {
+      final local = await _loadLocalQuotesForLanguage('all');
+      for (final quote in local) {
+        if (unresolved.contains(quote.id)) {
+          map[quote.id] = quote;
+        }
+      }
+      final builtin = _builtinQuotesForLanguage('all');
+      for (final quote in builtin) {
+        if (unresolved.contains(quote.id)) {
+          map[quote.id] = quote;
+        }
+      }
+    }
+
+    final ordered = orderedIds
+        .map((id) => map[id])
+        .whereType<Quote>()
+        .toList(growable: false);
+    return _filterByLanguage(ordered, language);
+  }
 }
 
 final quoteRepositoryProvider = Provider<QuoteRepository>(
