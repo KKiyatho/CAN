@@ -1,4 +1,6 @@
-﻿import 'package:firebase_core/firebase_core.dart';
+﻿import 'dart:ui' as ui;
+
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,6 +13,18 @@ import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Flutter Web 특정 환경에서 키보드 dismiss 타이밍에 발생하는
+  // viewInsets assertion을 앱 크래시로 전파하지 않도록 방어한다.
+  ui.PlatformDispatcher.instance.onError = (error, stack) {
+    final message = error.toString();
+    if (message.contains('_viewInsets.isNonNegative') ||
+        message.contains('ViewInsets cannot be negative')) {
+      debugPrint('[WebInsetsGuard] ignored: $message');
+      return true;
+    }
+    return false;
+  };
+
   // 웹에서 AssetManifest 이슈가 있을 때 google_fonts 반복 로드를 차단
   GoogleFonts.config.allowRuntimeFetching = false;
   await Firebase.initializeApp(

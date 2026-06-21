@@ -26,12 +26,26 @@ class CommunityPost {
 
   factory CommunityPost.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final rawContent = data['content'] as String? ?? '';
+    final rawTitle = data['title'] as String?;
+
+    String resolvedTitle = rawTitle?.trim() ?? '';
+    String resolvedContent = rawContent;
+
+    if (resolvedTitle.isEmpty && rawContent.startsWith('[')) {
+      final splitAt = rawContent.indexOf(']\n');
+      if (splitAt > 1) {
+        resolvedTitle = rawContent.substring(1, splitAt).trim();
+        resolvedContent = rawContent.substring(splitAt + 2).trim();
+      }
+    }
+
     return CommunityPost(
       id: doc.id,
       userId: data['userId'] as String? ?? '',
       quoteId: data['quoteId'] as String?,
-      title: data['title'] as String? ?? '',
-      content: data['content'] as String? ?? '',
+      title: resolvedTitle,
+      content: resolvedContent,
       likeCount: (data['likeCount'] as num?)?.toInt() ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );

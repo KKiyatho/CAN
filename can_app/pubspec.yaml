@@ -38,6 +38,8 @@ dependencies:
   firebase_core: ^3.6.0
   cloud_firestore: ^5.4.3
   firebase_auth: ^5.3.1
+  google_sign_in: ^6.3.0
+  flutter_facebook_auth: ^7.1.0
 
   # 로컬 저장 (북마크, 최근 검색어, 테마 설정)
   shared_preferences: ^2.3.5

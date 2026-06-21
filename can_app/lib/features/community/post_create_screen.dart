@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/firebase/auth_providers.dart';
 import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
 import 'community_repository.dart';
@@ -100,8 +101,10 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
     });
 
     try {
+      final currentUid = ref.read(firebaseAuthProvider).currentUser?.uid;
+      final effectiveUid = currentUid ?? widget.userId;
       await ref.read(communityRepositoryProvider).createPost(
-            userId: widget.userId,
+        userId: effectiveUid,
         title: title,
             content: content,
           );

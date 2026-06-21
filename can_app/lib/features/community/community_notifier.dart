@@ -66,6 +66,9 @@ class CommunityNotifier extends Notifier<CommunityState> {
   Future<void> _loadInitial() async {
     final repo = ref.read(communityRepositoryProvider);
     try {
+      final auth = ref.read(firebaseAuthProvider);
+      await signInAnonymouslyIfNeeded(auth);
+
       final results = await Future.wait([
         repo.fetchPosts(),
         repo.fetchTopPosts(),

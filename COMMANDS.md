@@ -99,6 +99,35 @@ npm run seed:quotes:resume
 
 ---
 
+## 🔐 Firebase 인증/룰 배포 (권한 오류 해결)
+
+루트(`vibe_coding_1`) 기준으로 실행합니다.
+
+```powershell
+cd C:/dev/vibe_coding_1
+
+# 1) Firebase 로그인
+npx --yes firebase-tools login
+
+# 2) 현재 로그인 계정 확인
+npx --yes firebase-tools login:list
+
+# 3) 프로젝트 확인 (기본: vibe-coding-1-abec4)
+npx --yes firebase-tools use
+
+# 4) Firestore rules 배포
+npx --yes firebase-tools deploy --only firestore:rules
+```
+
+Firebase Console에서 아래도 반드시 확인:
+
+1. Authentication > Sign-in method > Anonymous 활성화
+2. Authentication > Sign-in method > Google/Facebook 활성화
+3. Authentication > Settings > Authorized domains에 `localhost` 포함 (웹 개발 시)
+4. Firestore Database가 Native mode로 생성되어 있는지 확인
+
+---
+
 ## 💡 자주 쓰는 단축키 (실행 중 터미널)
 
 | 키 | 동작 |

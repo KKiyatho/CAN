@@ -1,6 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/firebase/auth_providers.dart';
 import '../../core/theme/i18n.dart';
@@ -70,6 +73,65 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isSubmitting = true);
+    try {
+      final auth = ref.read(firebaseAuthProvider);
+      if (kIsWeb) {
+        await auth.signInWithPopup(GoogleAuthProvider());
+      } else {
+        final googleSignIn = GoogleSignIn();
+        final googleUser = await googleSignIn.signIn();
+        if (googleUser == null) return;
+        final googleAuth = await googleUser.authentication;
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        await auth.signInWithCredential(credential);
+      }
+    } on FirebaseAuthException catch (e) {
+      _showError(e.message ?? e.code);
+    } on AssertionError {
+      _showError('Google 로그인 설정이 누락되었습니다. Firebase Authentication의 Google 공급자 설정을 확인해 주세요.');
+    } catch (e) {
+      _showError(e.toString());
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _signInWithFacebook() async {
+    setState(() => _isSubmitting = true);
+    try {
+      final auth = ref.read(firebaseAuthProvider);
+      if (kIsWeb) {
+        await auth.signInWithPopup(FacebookAuthProvider());
+      } else {
+        final result = await FacebookAuth.instance.login();
+        if (result.status != LoginStatus.success) {
+          _showError(I18n.t(ref.read(themeNotifierProvider).languageCode,
+              'login.facebookCanceled'));
+          return;
+        }
+        final token = result.accessToken?.tokenString;
+        if (token == null) {
+          _showError(I18n.t(ref.read(themeNotifierProvider).languageCode,
+              'login.facebookCanceled'));
+          return;
+        }
+        final credential = FacebookAuthProvider.credential(token);
+        await auth.signInWithCredential(credential);
+      }
+    } on FirebaseAuthException catch (e) {
+      _showError(e.message ?? e.code);
+    } catch (e) {
+      _showError(e.toString());
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -102,6 +164,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _isSubmitting ? null : _signInWithGoogle,
+                  icon: const Icon(Icons.g_mobiledata, size: 24),
+                  label: Text(I18n.t(lang, 'login.google')),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _isSubmitting ? null : _signInWithFacebook,
+                  icon: const Icon(Icons.facebook),
+                  label: Text(I18n.t(lang, 'login.facebook')),
+                ),
+              ),
+              const SizedBox(height: 12),
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,

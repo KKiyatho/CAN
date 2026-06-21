@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gal/gal.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
@@ -179,7 +181,7 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
           left: 24,
           right: 24,
           top: 24,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              bottom: math.max(0.0, MediaQuery.of(context).viewInsets.bottom) + 24,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -516,18 +518,21 @@ class _WallpaperCanvas extends StatelessWidget {
   final Color? bgSolidColor;
 
   TextStyle _quoteTextStyle() {
-    return TextStyle(
+    if (kIsWeb) {
+      return TextStyle(
+        fontSize: 16,
+        color: textColor,
+        height: 1.8,
+        fontWeight: FontWeight.w500,
+        fontFamily: 'Batang',
+        fontFamilyFallback: const ['BatangChe', 'serif'],
+      );
+    }
+    return GoogleFonts.nanumMyeongjo(
       fontSize: 16,
       color: textColor,
       height: 1.8,
       fontWeight: FontWeight.w500,
-      fontFamily: 'Batang',
-      fontFamilyFallback: const [
-        'BatangChe',
-        'NanumMyeongjo',
-        'Noto Serif KR',
-        'serif'
-      ],
     );
   }
 

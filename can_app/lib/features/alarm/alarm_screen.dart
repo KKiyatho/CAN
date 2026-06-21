@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -307,7 +309,7 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
         left: 24,
         right: 24,
         top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        bottom: math.max(0.0, MediaQuery.of(context).viewInsets.bottom) + 24,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

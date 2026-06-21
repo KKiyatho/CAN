@@ -61,14 +61,26 @@ class CommunityRepository {
     }
     if (userId.isEmpty) throw ArgumentError('userId가 유효하지 않습니다.');
 
-    await _db.collection(_postsCol).add({
-      'userId': userId,
-      if (quoteId != null) 'quoteId': quoteId,
-      'title': trimmedTitle,
-      'content': trimmed,
-      'likeCount': 0,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _db.collection(_postsCol).add({
+        'userId': userId,
+        if (quoteId != null) 'quoteId': quoteId,
+        'title': trimmedTitle,
+        'content': trimmed,
+        'likeCount': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      // 구버전 rules( title 허용 전 )와의 호환 폴백
+      if (e.code != 'permission-denied') rethrow;
+      await _db.collection(_postsCol).add({
+        'userId': userId,
+        if (quoteId != null) 'quoteId': quoteId,
+        'content': '[$trimmedTitle]\n$trimmed',
+        'likeCount': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
   }
 
   // ── 하트 토글 ──────────────────────────────────────────────────────────
