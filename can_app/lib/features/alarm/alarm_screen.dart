@@ -352,7 +352,7 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
                         itemExtent: 44,
                         diameterRatio: 1.8,
                         perspective: 0.003,
-                        physics: const FixedExtentScrollPhysics(),
+                        physics: const BouncingScrollPhysics(),
                         onSelectedItemChanged: (i) =>
                             setState(() => _hour = i),
                         childDelegate: ListWheelChildBuilderDelegate(
@@ -401,7 +401,7 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
                         itemExtent: 44,
                         diameterRatio: 1.8,
                         perspective: 0.003,
-                        physics: const FixedExtentScrollPhysics(),
+                        physics: const BouncingScrollPhysics(),
                         onSelectedItemChanged: (i) =>
                             setState(() => _minute = i),
                         childDelegate: ListWheelChildBuilderDelegate(
