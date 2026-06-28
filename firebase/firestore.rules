@@ -2,9 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── quotes: 누구나 읽기, 쓰기는 Admin SDK 전용 ──────────────────────
+    // ── quotes: 인증된 사용자(anonymous 포함)만 읽기, 쓰기는 Admin SDK 전용 ──
     match /quotes/{quoteId} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow write: if false;
     }
 
@@ -34,7 +34,8 @@ service cloud.firestore {
                     && request.resource.data.avatarEmoji.size() <= 8
                     && (!('avatarImageDataUrl' in request.resource.data)
                         || (request.resource.data.avatarImageDataUrl is string
-                            && request.resource.data.avatarImageDataUrl.size() <= 200000))
+                            && request.resource.data.avatarImageDataUrl.size() <= 200000
+                            && (request.resource.data.avatarImageDataUrl.matches('data:image/(jpeg|png|gif|webp);base64,[A-Za-z0-9+/=]+'))))
                     && request.resource.data.content is string
                     && request.resource.data.content.size() >= 1
                     && request.resource.data.content.size() <= 300
@@ -99,7 +100,8 @@ service cloud.firestore {
                             && request.resource.data.avatarEmoji.size() <= 8
                             && (!('avatarImageDataUrl' in request.resource.data)
                                 || (request.resource.data.avatarImageDataUrl is string
-                                    && request.resource.data.avatarImageDataUrl.size() <= 200000))
+                                    && request.resource.data.avatarImageDataUrl.size() <= 200000
+                                    && (request.resource.data.avatarImageDataUrl.matches('data:image/(jpeg|png|gif|webp);base64,[A-Za-z0-9+/=]+'))));
                             && request.resource.data.keys().hasOnly([
                               'uid',
                               'displayName',

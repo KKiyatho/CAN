@@ -49,9 +49,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final auth = ref.read(firebaseAuthProvider);
       await signInAnonymouslyIfNeeded(auth);
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
-      _showError(e.toString());
+      _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.genericError'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -81,8 +81,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } on FirebaseAuthException catch (e) {
       _showError(e.message ?? e.code);
-    } catch (e) {
-      _showError(e.toString());
+    } catch (_) {
+      _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.genericError'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -115,11 +115,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       _showError(_authErrorMessage(e));
     } on TimeoutException {
-      _showError('로그인 응답이 지연되고 있습니다. 다시 시도해 주세요.');
+      _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.timeout'));
     } on AssertionError {
-      _showError('Google 로그인 설정이 누락되었습니다. Firebase Authentication의 Google 공급자 설정을 확인해 주세요.');
-    } catch (e) {
-      _showError(e.toString());
+      _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.configError'));
+    } catch (_) {
+      _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.genericError'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

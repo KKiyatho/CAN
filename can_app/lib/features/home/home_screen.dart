@@ -655,6 +655,17 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
     final bytes = file.bytes;
     if (bytes == null || bytes.isEmpty) return;
 
+    // ── 파일 시그니처(magic bytes) 검증: 허용 포맷만 수락 ──────────────
+    final mime = _detectMimeType(bytes);
+    if (mime == null) {
+      if (!mounted) return;
+      final lang = ref.read(themeNotifierProvider).languageCode;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(I18n.t(lang, 'profile.invalidImageType'))),
+      );
+      return;
+    }
+
     if (bytes.length > 150 * 1024) {
       if (!mounted) return;
       final lang = ref.read(themeNotifierProvider).languageCode;
@@ -664,17 +675,38 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
       return;
     }
 
-    final ext = (file.extension ?? 'png').toLowerCase();
-    final mime = switch (ext) {
-      'jpg' || 'jpeg' => 'image/jpeg',
-      'gif' => 'image/gif',
-      'webp' => 'image/webp',
-      _ => 'image/png',
-    };
-
     setState(() {
       _imageDataUrl = 'data:$mime;base64,${base64Encode(bytes)}';
     });
+  }
+
+  /// 파일 시그니처(magic bytes)로 MIME 타입 판별.
+  /// 허용 포맷(JPEG, PNG, GIF, WebP)이 아니면 null 반환.
+  static String? _detectMimeType(List<int> bytes) {
+    if (bytes.length < 4) return null;
+    // JPEG: FF D8 FF
+    if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) {
+      return 'image/jpeg';
+    }
+    // PNG: 89 50 4E 47
+    if (bytes[0] == 0x89 && bytes[1] == 0x50 &&
+        bytes[2] == 0x4E && bytes[3] == 0x47) {
+      return 'image/png';
+    }
+    // GIF: 47 49 46 38
+    if (bytes[0] == 0x47 && bytes[1] == 0x49 &&
+        bytes[2] == 0x46 && bytes[3] == 0x38) {
+      return 'image/gif';
+    }
+    // WebP: 52 49 46 46 ... 57 45 42 50 (RIFF....WEBP)
+    if (bytes.length >= 12 &&
+        bytes[0] == 0x52 && bytes[1] == 0x49 &&
+        bytes[2] == 0x46 && bytes[3] == 0x46 &&
+        bytes[8] == 0x57 && bytes[9] == 0x45 &&
+        bytes[10] == 0x42 && bytes[11] == 0x50) {
+      return 'image/webp';
+    }
+    return null;
   }
 
   Future<void> _save() async {

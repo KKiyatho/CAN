@@ -159,15 +159,11 @@ class SearchNotifier extends Notifier<SearchState> {
         return;
       }
 
-      // 3) 기본 추천 태그 폴백
-      final fallbackTags = TagExtractor.fallbackTags(input);
-      final byFallback =
-          await _repo.searchByTags(fallbackTags, language: _language);
+      // 3) 태그·키워드 모두 결과 없음 → 빈 결과 표시 (폴백 추천 제거)
       state = state.copyWith(
-        selectedTags: fallbackTags,
-        results: AsyncValue.data(byFallback.quotes),
-        hasMore: byFallback.hasMore,
-        nextOffset: byFallback.nextOffset,
+        results: const AsyncValue.data([]),
+        hasMore: false,
+        nextOffset: 0,
       );
     } catch (e, st) {
       state = state.copyWith(results: AsyncValue.error(e, st));

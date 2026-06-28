@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../app_shell.dart';
 import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../shared/widgets/quote_card.dart';
@@ -161,12 +162,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     super.dispose();
   }
 
-  void _clear() {
+  // 검색 초기화 (취소 버튼 및 탭 이탈 시 공통 사용)
+  void _reset() {
     _controller.clear();
     _focusNode.unfocus();
-    setState(() => _isSearching = false);
+    if (mounted) setState(() => _isSearching = false);
     ref.read(searchNotifierProvider.notifier).clearSearch();
   }
+
+  void _clear() => _reset();
 
   void _submit(String v) {
     if (v.trim().isEmpty) return;
@@ -193,6 +197,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 검색 탭(인덱스 1)을 벗어나는 순간 상태 초기화 → 돌아오면 첫 화면
+    ref.listen(tabIndexProvider, (prev, next) {
+      if (prev == 1 && next != 1) _reset();
+    });
+
     final lang = ref.watch(themeNotifierProvider).languageCode;
     final state = ref.watch(searchNotifierProvider);
     final theme = Theme.of(context);

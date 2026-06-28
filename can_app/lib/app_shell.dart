@@ -8,15 +8,15 @@ import '../features/community/community_screen.dart';
 import '../features/alarm/alarm_screen.dart';
 import '../features/wallpaper/wallpaper_screen.dart';
 
-// 현재 선택된 탭 인덱스
-final _tabIndexProvider = StateProvider<int>((_) => 0);
+// 현재 선택된 탭 인덱스 (검색 탭 리셋 등 외부에서 참조 가능하도록 공개)
+final tabIndexProvider = StateProvider<int>((_) => 0);
 
 class AppShell extends ConsumerWidget {
   const AppShell({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentIndex = ref.watch(_tabIndexProvider);
+    final currentIndex = ref.watch(tabIndexProvider);
   final lang = ref.watch(themeNotifierProvider).languageCode;
   final tabs = [
     _TabItem(
@@ -56,7 +56,7 @@ class AppShell extends ConsumerWidget {
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentIndex,
         onDestinationSelected: (i) =>
-            ref.read(_tabIndexProvider.notifier).state = i,
+            ref.read(tabIndexProvider.notifier).state = i,
         destinations: tabs
             .map((t) => NavigationDestination(
                   icon: Icon(t.icon),
