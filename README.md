@@ -106,10 +106,8 @@
 - **개인화**: 5가지 테마 색상 + 다크/라이트 모드 즉시 반영
 
 ### 화면 구성
-```
-<img width="532" height="895" alt="스크린샷 2026-06-21 152254" src="https://github.com/user-attachments/assets/d31f0adb-d7a4-420b-b6fb-eabacc042195" />
+<img width="533" height="905" alt="스크린샷 2026-06-28 114923" src="https://github.com/user-attachments/assets/96a86b4a-b781-4193-bf47-4caf4e336d94" />
 
-```
 
 ---
 
