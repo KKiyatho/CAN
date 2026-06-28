@@ -100,9 +100,9 @@ service cloud.firestore {
                             && request.resource.data.avatarEmoji.size() <= 8
                             && (!('avatarImageDataUrl' in request.resource.data)
                                 || (request.resource.data.avatarImageDataUrl is string
-                                    && request.resource.data.avatarImageDataUrl.size() <= 200000
-                                    && (request.resource.data.avatarImageDataUrl.matches('data:image/(jpeg|png|gif|webp);base64,[A-Za-z0-9+/=]+'))));
-                            && request.resource.data.keys().hasOnly([
+                                  && request.resource.data.avatarImageDataUrl.size() <= 200000
+                                  && (request.resource.data.avatarImageDataUrl.matches('data:image/(jpeg|png|gif|webp);base64,[A-Za-z0-9+/=]+'))))
+                              && request.resource.data.keys().hasOnly([
                               'uid',
                               'displayName',
                               'avatarEmoji',
