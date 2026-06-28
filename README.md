@@ -5,7 +5,6 @@
 
 [![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/KKiyatho/vibe_coding_1)
 [![Flutter](https://img.shields.io/badge/Flutter-3.8.1-02569B?logo=flutter)](https://flutter.dev)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
 
@@ -108,7 +107,8 @@
 ### 화면 구성
 <img width="533" height="905" alt="스크린샷 2026-06-28 114923" src="https://github.com/user-attachments/assets/96a86b4a-b781-4193-bf47-4caf4e336d94" />
 
-
+- 더 많은 스크린샷
+| [screenshot.md](screenshot.md) | 스크린샷 모음 |
 ---
 
 ## 💡 주요 구현 사항
@@ -220,6 +220,7 @@ firebase deploy --only firestore:rules
 | [agent.md](agent.md) | AI 어시스턴트 개발 지침 |
 | [COMMANDS.md](COMMANDS.md) | 개발·배포 명령어 모음 |
 | [활동기록.md](활동기록.md) | 주간 개발 로그 |
+| [screenshot.md](screenshot.md) | 스크린샷 모음 |
 
 ---
 
@@ -228,12 +229,6 @@ firebase deploy --only firestore:rules
 **최민준** (KKiyatho)  
 - GitHub: [@KKiyatho](https://github.com/KKiyatho)
 - Email: hellochoi1016@gmail.com
-
----
-
-## 📄 라이선스
-
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
