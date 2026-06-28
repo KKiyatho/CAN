@@ -1,7 +1,7 @@
 # CAN 🌟
 
 > **"당신은 할 수 있습니다 (You CAN)."**  
-> 시대를 초월한 명언과 사용자의 마음을 연결하는 모바일 동기부여 플랫폼
+> 명언과 사용자의 마음을 연결하는 모바일 동기부여 플랫폼
 
 [![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/KKiyatho/vibe_coding_1)
 [![Flutter](https://img.shields.io/badge/Flutter-3.8.1-02569B?logo=flutter)](https://flutter.dev)
@@ -246,15 +246,38 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 ---
 
-## 🎬 스크린샷
+## 🎬 핵심 화면
 
-| 홈 (라이트) | 검색 | 커뮤니티 |
-|-----------|------|---------|
-| ![Home Light](screenshots/home_light.png) | ![Search](screenshots/search.png) | ![Community](screenshots/community.png) |
+### 📱 홈 화면 (라이트/다크 모드)
+매일 새로운 명언으로 하루를 시작합니다.
+- **기능**: 좋아요 ♥️ | 북마크 📖 | 공유 🔗 | 다음 명언 →
+- **테마**: 5가지 색상 + 다크/라이트 모드 즉시 전환
 
-| 알람 | 배경화면 | 홈 (다크) |
-|------|---------|---------|
-| ![Alarm](screenshots/alarm.png) | ![Wallpaper](screenshots/wallpaper.png) | ![Home Dark](screenshots/home_dark.png) |
+### 🔍 검색 & 추천
+감정을 입력하면 맞춤형 명언을 자동 추천합니다.
+- **감정 칩**: 불안, 지침, 면접, 사랑, 행복, 자기계발
+- **카테고리**: 철학자, 기업가, 작가, 과학자, 예술가, 운동선수
+
+### 💬 커뮤니티
+사용자들의 동기부여 이야기를 함께 나눕니다.
+- **인기글 순위**: 월간 TOP 3 사용자
+- **피드**: 모든 사용자의 게시글 + 하트 시스템
+
+### ⏰ 알람 (휠 UI)
+명언으로 깨워주는 스마트 알람입니다.
+- **시간 설정**: 휠 형식으로 직관적인 조작
+- **반복 요일**: 월~일 원하는 요일만 선택
+- **해제 미션**: 지정 문구 타이핑으로 꺼기
+
+### 🎨 배경화면 제작
+명언을 배경화면으로 만들어 저장합니다.
+- **배경 옵션**: 그라디언트(12색) | 이미지 | 단색(6색)
+- **텍스트 색상**: 6가지 색상 선택 가능
+- **즉시 저장**: 고화질로 갤러리에 저장
+
+---
+
+**📸 더 자세한 스크린샷은 위의 이미지들을 확인해주세요!**
 
 ---
 
