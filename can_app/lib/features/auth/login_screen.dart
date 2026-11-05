@@ -94,28 +94,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final auth = ref.read(firebaseAuthProvider);
       if (kIsWeb) {
-        await auth
-            .signInWithPopup(GoogleAuthProvider())
-            .timeout(const Duration(seconds: 90));
-      } else {
-        final googleSignIn = GoogleSignIn();
-        final googleUser = await googleSignIn.signIn();
-        if (googleUser == null) {
-          _showError(
-              I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.popupCanceled'));
+        try {
+          await auth
+              .signInWithPopup(GoogleAuthProvider())
+              .timeout(const Duration(seconds: 90));
           return;
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'auth/popup-blocked' ||
+              e.code == 'auth/popup-closed-by-user') {
+            await auth.signInWithRedirect(GoogleAuthProvider());
+            return;
+          }
+          if (e.code == 'auth/configuration-not-found' ||
+              e.code == 'auth/operation-not-allowed' ||
+              e.code == 'auth/unauthorized-domain') {
+            throw StateError(
+              '${I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.configError')}\n'
+              'Firebase Authentication > Sign-in method > Google 설정과 허용 도메인을 확인해 주세요.',
+            );
+          }
+          rethrow;
         }
-        final googleAuth = await googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-        await auth.signInWithCredential(credential);
       }
+
+      final googleSignIn = GoogleSignIn();
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        _showError(
+            I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.popupCanceled'));
+        return;
+      }
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await auth.signInWithCredential(credential);
     } on FirebaseAuthException catch (e) {
       _showError(_authErrorMessage(e));
     } on TimeoutException {
       _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.timeout'));
+    } on StateError catch (e) {
+      _showError(e.message.toString());
     } on AssertionError {
       _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.configError'));
     } catch (_) {

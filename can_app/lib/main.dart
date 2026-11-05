@@ -81,26 +81,40 @@ class _MobileViewport extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!kIsWeb) return child;
 
-    return ColoredBox(
-      color: const Color(0xFFF2F4F8),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 430),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x22000000),
-                  blurRadius: 24,
-                  offset: Offset(0, 8),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxPhoneWidth = constraints.maxWidth > 600 ? 430.0 : constraints.maxWidth * 0.96;
+        final effectiveWidth = maxPhoneWidth.clamp(320.0, 430.0);
+
+        return ColoredBox(
+          color: const Color(0xFFF2F4F8),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: effectiveWidth,
+                maxHeight: 960,
+              ),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x22000000),
+                      blurRadius: 24,
+                      offset: Offset(0, 10),
+                    ),
+                  ],
                 ),
-              ],
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: child,
+                ),
+              ),
             ),
-            child: child,
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
