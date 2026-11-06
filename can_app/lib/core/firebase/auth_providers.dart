@@ -1,34 +1,74 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-// ---------------------------------------------------------------------------
-// Firebase Auth 인스턴스 Provider
-// ---------------------------------------------------------------------------
-final firebaseAuthProvider = Provider<FirebaseAuth>(
-  (_) => FirebaseAuth.instance,
-);
+const supabaseUrl = 'https://xlqqeypfomtvkxeyyxek.supabase.co';
+const supabasePublishableKey = 'sb_publishable_VVPXLJBHNaZaaub6-RlgNg_Q7wa5B0Z';
 
-// ---------------------------------------------------------------------------
-// 현재 로그인 사용자 스트림 Provider
-// ---------------------------------------------------------------------------
-final authStateProvider = StreamProvider<User?>((ref) {
-  return ref.watch(firebaseAuthProvider).authStateChanges();
+class AppUser {
+  const AppUser({
+    required this.id,
+    this.email,
+    this.displayName,
+    this.isAnonymous = false,
+  });
+
+  final String id;
+  final String? email;
+  final String? displayName;
+  final bool isAnonymous;
+
+  static AppUser? fromSession(Session? session) {
+    final user = session?.user;
+    if (user == null) return null;
+    final metadata = user.userMetadata ?? const {};
+    final display = metadata['full_name'] as String? ??
+        metadata['name'] as String? ??
+        user.email?.split('@').first;
+    return AppUser(
+      id: user.id,
+      email: user.email,
+      displayName: display,
+      isAnonymous: user.isAnonymous,
+    );
+  }
+
+  static AppUser? fromSupabaseUser(User? user) {
+    if (user == null) return null;
+    final metadata = user.userMetadata ?? const {};
+    final display = metadata['full_name'] as String? ??
+        metadata['name'] as String? ??
+        user.email?.split('@').first;
+    return AppUser(
+      id: user.id,
+      email: user.email,
+      displayName: display,
+      isAnonymous: user.isAnonymous,
+    );
+  }
+}
+
+final supabaseClientProvider = Provider<SupabaseClient>((_) => Supabase.instance.client);
+
+final authStateProvider = StreamProvider<AppUser?>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return client.auth.onAuthStateChange.map((event) => AppUser.fromSession(event.session));
 });
 
-// ---------------------------------------------------------------------------
-// 현재 사용자 UID Provider — Anonymous Auth 자동 로그인 포함
-// null이면 아직 로그인 전, 로그인 후에는 uid 반환
-// ---------------------------------------------------------------------------
 final currentUserIdProvider = Provider<String?>((ref) {
   final authState = ref.watch(authStateProvider);
-  return authState.valueOrNull?.uid;
+  return authState.valueOrNull?.id;
 });
 
-// ---------------------------------------------------------------------------
-// Anonymous 로그인 함수 (앱 시작 시 1회 호출)
-// ---------------------------------------------------------------------------
-Future<User?> signInAnonymouslyIfNeeded(FirebaseAuth auth) async {
-  if (auth.currentUser != null) return auth.currentUser;
-  final credential = await auth.signInAnonymously();
-  return credential.user;
+Future<AppUser?> signInAnonymouslyIfNeeded([SupabaseClient? client]) async {
+  final supabase = client ?? Supabase.instance.client;
+  final existing = AppUser.fromSupabaseUser(supabase.auth.currentUser);
+  if (existing != null) return existing;
+
+  final response = await supabase.auth.signInAnonymously();
+  return AppUser.fromSupabaseUser(response.user);
+}
+
+Future<void> signOutCurrentUser([SupabaseClient? client]) async {
+  final supabase = client ?? Supabase.instance.client;
+  await supabase.auth.signOut();
 }

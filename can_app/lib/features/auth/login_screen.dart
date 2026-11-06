@@ -1,10 +1,9 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/firebase/auth_providers.dart';
 import '../../core/theme/i18n.dart';
@@ -23,20 +22,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isSubmitting = false;
   bool _isRegisterMode = false;
 
-  String _authErrorMessage(FirebaseAuthException e) {
-    final lang = ref.read(themeNotifierProvider).languageCode;
-
-    switch (e.code) {
-      case 'popup-closed-by-user':
-      case 'cancelled-popup-request':
-        return I18n.t(lang, 'login.popupCanceled');
-      case 'unauthorized-domain':
-        return I18n.t(lang, 'login.unauthorizedDomain');
-      default:
-        return e.message ?? e.code;
-    }
-  }
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -47,8 +32,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _signInAnonymously() async {
     setState(() => _isSubmitting = true);
     try {
-      final auth = ref.read(firebaseAuthProvider);
-      await signInAnonymouslyIfNeeded(auth);
+      await signInAnonymouslyIfNeeded();
     } catch (_) {
       if (!mounted) return;
       _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.genericError'));
@@ -67,20 +51,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      final auth = ref.read(firebaseAuthProvider);
+      final client = ref.read(supabaseClientProvider);
       if (_isRegisterMode) {
-        await auth.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
+        await client.auth.signUp(email: email, password: password);
       } else {
-        await auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
+        await client.auth.signInWithPassword(email: email, password: password);
       }
-    } on FirebaseAuthException catch (e) {
-      _showError(e.message ?? e.code);
+    } on AuthException catch (e) {
+      _showError(e.message);
+    } on TimeoutException {
+      _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.timeout'));
     } catch (_) {
       _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.genericError'));
     } finally {
@@ -92,52 +72,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
     try {
-      final auth = ref.read(firebaseAuthProvider);
-      if (kIsWeb) {
-        try {
-          await auth
-              .signInWithPopup(GoogleAuthProvider())
-              .timeout(const Duration(seconds: 90));
-          return;
-        } on FirebaseAuthException catch (e) {
-          if (e.code == 'auth/popup-blocked' ||
-              e.code == 'auth/popup-closed-by-user') {
-            await auth.signInWithRedirect(GoogleAuthProvider());
-            return;
-          }
-          if (e.code == 'auth/configuration-not-found' ||
-              e.code == 'auth/operation-not-allowed' ||
-              e.code == 'auth/unauthorized-domain') {
-            throw StateError(
-              '${I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.configError')}\n'
-              'Firebase Authentication > Sign-in method > Google 설정과 허용 도메인을 확인해 주세요.',
-            );
-          }
-          rethrow;
-        }
-      }
-
-      final googleSignIn = GoogleSignIn();
-      final googleUser = await googleSignIn.signIn();
-      if (googleUser == null) {
-        _showError(
-            I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.popupCanceled'));
-        return;
-      }
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
+      final client = ref.read(supabaseClientProvider);
+      final redirect = kIsWeb ? null : 'can://login-callback';
+      await client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: redirect,
       );
-      await auth.signInWithCredential(credential);
-    } on FirebaseAuthException catch (e) {
-      _showError(_authErrorMessage(e));
+    } on AuthException catch (e) {
+      _showError(e.message);
     } on TimeoutException {
       _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.timeout'));
-    } on StateError catch (e) {
-      _showError(e.message.toString());
-    } on AssertionError {
-      _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.configError'));
     } catch (_) {
       _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.genericError'));
     } finally {

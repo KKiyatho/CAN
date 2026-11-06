@@ -32,8 +32,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     // Anonymous 로그인 — 실패해도 UI는 계속 표시, 글 작성만 막힘
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
-        final auth = ref.read(firebaseAuthProvider);
-        await signInAnonymouslyIfNeeded(auth);
+        await signInAnonymouslyIfNeeded();
       } catch (_) {
         // 인증 실패는 조용히 처리 (피드 읽기는 계속 가능)
         // 로그는 프로덕션에서 외부 모니터링 도구로 전달할 것
@@ -59,9 +58,8 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     String? userId = ref.read(currentUserIdProvider);
     if (userId == null) {
       try {
-        final auth = ref.read(firebaseAuthProvider);
-        final user = await signInAnonymouslyIfNeeded(auth);
-        userId = user?.uid;
+        final user = await signInAnonymouslyIfNeeded();
+        userId = user?.id;
       } catch (_) {}
     }
 

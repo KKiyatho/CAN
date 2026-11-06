@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/firebase/auth_providers.dart';
@@ -32,8 +31,8 @@ class ProfileRepository {
     await _users.doc(profile.uid).set(data, SetOptions(merge: true));
   }
 
-  Future<UserProfile> resolveEffectiveProfile(User user) async {
-    final saved = await fetchProfile(user.uid);
+  Future<UserProfile> resolveEffectiveProfile(AppUser user) async {
+    final saved = await fetchProfile(user.id);
     if (saved != null) return saved;
 
     final authName = user.displayName?.trim() ?? '';
@@ -41,7 +40,7 @@ class ProfileRepository {
         ? authName
         : (user.email?.split('@').first ?? (user.isAnonymous ? 'Guest' : 'User'));
     return UserProfile(
-      uid: user.uid,
+      uid: user.id,
       displayName: fallbackName,
       avatarEmoji: '🐣',
       avatarImageDataUrl: null,

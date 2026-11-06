@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart' show Share;
 import '../../core/firebase/auth_providers.dart';
 import '../../core/theme/i18n.dart';
@@ -330,7 +329,7 @@ class _ProfileBottomSheetState extends ConsumerState<_ProfileBottomSheet> {
                     onPressed: authUser == null
                         ? null
                         : () async {
-                            await ref.read(firebaseAuthProvider).signOut();
+                            await signOutCurrentUser();
                             if (context.mounted) Navigator.of(context).pop();
                           },
                     icon: const Icon(Icons.logout),
@@ -415,7 +414,7 @@ class _ProfileBottomSheetState extends ConsumerState<_ProfileBottomSheet> {
 
   Future<void> _openEditProfile(
     BuildContext context,
-    User authUser,
+    AppUser authUser,
     UserProfile? profile,
   ) async {
     await showModalBottomSheet(
@@ -434,7 +433,7 @@ class _ProfileBottomSheetState extends ConsumerState<_ProfileBottomSheet> {
     );
   }
 
-  String _displayName(User? authUser, UserProfile? profile) {
+  String _displayName(AppUser? authUser, UserProfile? profile) {
     final profileName = profile?.displayName.trim() ?? '';
     if (profileName.isNotEmpty) return profileName;
     if (authUser == null) return 'Guest';
@@ -448,7 +447,7 @@ class _ProfileBottomSheetState extends ConsumerState<_ProfileBottomSheet> {
     return 'User';
   }
 
-  String _subtitle(User? authUser, UserProfile? profile, String lang) {
+  String _subtitle(AppUser? authUser, UserProfile? profile, String lang) {
     if (profile != null && profile.displayName.trim().isNotEmpty) {
       return I18n.t(lang, 'profile.savedProfile');
     }
@@ -590,7 +589,7 @@ class _ProfileAvatar extends StatelessWidget {
 }
 
 class _EditProfileSheet extends ConsumerStatefulWidget {
-  final User user;
+  final AppUser user;
   final UserProfile? initialProfile;
 
   const _EditProfileSheet({
@@ -723,7 +722,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
     try {
       final repo = ref.read(profileRepositoryProvider);
       await repo.saveProfile(UserProfile(
-        uid: widget.user.uid,
+        uid: widget.user.id,
         displayName: trimmedName,
         avatarEmoji: _selectedEmoji,
         avatarImageDataUrl: _imageDataUrl,

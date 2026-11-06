@@ -102,8 +102,8 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
     });
 
     try {
-      final authUser = ref.read(firebaseAuthProvider).currentUser;
-      final currentUid = authUser?.uid;
+      final authUser = ref.read(authStateProvider).valueOrNull;
+      final currentUid = authUser?.id;
       final effectiveUid = currentUid ?? widget.userId;
       final profileRepo = ref.read(profileRepositoryProvider);
       final effectiveProfile = authUser == null

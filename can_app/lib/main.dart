@@ -1,10 +1,11 @@
 ﻿import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app_shell.dart';
 import 'core/firebase/auth_providers.dart';
 import 'core/theme/theme_notifier.dart';
@@ -28,6 +29,12 @@ Future<void> main() async {
 
   // 웹에서 AssetManifest 이슈가 있을 때 google_fonts 반복 로드를 차단
   GoogleFonts.config.allowRuntimeFetching = false;
+
+  await Supabase.initialize(
+    url: supabaseUrl,
+    publishableKey: supabasePublishableKey,
+  );
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
