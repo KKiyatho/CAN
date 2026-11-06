@@ -5,7 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart' show Share;
-import '../../core/firebase/auth_providers.dart';
+import '../../core/auth/auth_providers.dart';
 import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../profile/profile_repository.dart';

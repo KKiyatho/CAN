@@ -1,46 +1,42 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/firebase/firebase_providers.dart';
 import 'community_post.dart';
 
 // ---------------------------------------------------------------------------
 // CommunityRepository
 // ---------------------------------------------------------------------------
 class CommunityRepository {
-  final FirebaseFirestore _db;
-  CommunityRepository(this._db);
+  static final List<CommunityPost> _inMemoryPosts = <CommunityPost>[];
+  static final Map<String, Set<String>> _likedByPost = <String, Set<String>>{};
 
-  static const _postsCol = 'community_posts';
-  static const _likesCol = 'post_likes';
+  CommunityRepository();
+
   static const int pageSize = 20;
 
   // ── 피드 첫 페이지 ──────────────────────────────────────────────────────
-  Future<({List<CommunityPost> posts, DocumentSnapshot? lastDoc})>
-      fetchPosts({DocumentSnapshot? after}) async {
-    Query<Map<String, dynamic>> q = _db
-        .collection(_postsCol)
-        .orderBy('createdAt', descending: true)
-        .limit(pageSize);
+  Future<({List<CommunityPost> posts, String? lastDoc})> fetchPosts({String? after}) async {
+    final items = [..._inMemoryPosts];
+    items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    if (after != null) q = q.startAfterDocument(after);
+    final startIndex = after == null
+        ? 0
+        : (() {
+            final index = items.indexWhere((post) => post.id == after);
+            return index == -1 ? 0 : index + 1;
+          })();
 
-    final snap = await q.get();
-    final posts = snap.docs.map(CommunityPost.fromFirestore).toList();
+    final page = items.skip(startIndex).take(pageSize).toList();
     return (
-      posts: posts,
-      lastDoc: snap.docs.isNotEmpty ? snap.docs.last : null,
+      posts: page,
+      lastDoc: page.isNotEmpty ? page.last.id : null,
     );
   }
 
   // ── 인기 글 (likeCount 상위 10개) ────────────────────────────────────────
   Future<List<CommunityPost>> fetchTopPosts({int limit = 10}) async {
-    final snap = await _db
-        .collection(_postsCol)
-        .orderBy('likeCount', descending: true)
-        .limit(limit)
-        .get();
-    return snap.docs.map(CommunityPost.fromFirestore).toList();
+    final items = [..._inMemoryPosts];
+    items.sort((a, b) => b.likeCount.compareTo(a.likeCount));
+    return items.take(limit).toList();
   }
 
   // ── 글 작성 ────────────────────────────────────────────────────────────
@@ -53,7 +49,6 @@ class CommunityRepository {
     required String content,
     String? quoteId,
   }) async {
-    // 서버측 검증 (Firestore Rules 와 이중 방어)
     final trimmedTitle = title.trim();
     final trimmed = content.trim();
     if (trimmedTitle.isEmpty || trimmedTitle.length > 60) {
@@ -64,62 +59,61 @@ class CommunityRepository {
     }
     if (userId.isEmpty) throw ArgumentError('userId가 유효하지 않습니다.');
 
-    await _db.collection(_postsCol).add({
-        'userId': userId,
-        'displayName': displayName.trim().isEmpty ? 'Guest' : displayName.trim(),
-        'avatarEmoji': avatarEmoji.trim().isEmpty ? '🐣' : avatarEmoji.trim(),
-        if (avatarImageDataUrl != null && avatarImageDataUrl.isNotEmpty)
-          'avatarImageDataUrl': avatarImageDataUrl,
-        if (quoteId != null) 'quoteId': quoteId,
-        'title': trimmedTitle,
-        'content': trimmed,
-        'likeCount': 0,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+    final post = CommunityPost(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      userId: userId,
+      displayName: displayName.trim().isEmpty ? 'Guest' : displayName.trim(),
+      avatarEmoji: avatarEmoji.trim().isEmpty ? '🐣' : avatarEmoji.trim(),
+      avatarImageDataUrl: avatarImageDataUrl,
+      quoteId: quoteId,
+      title: trimmedTitle,
+      content: trimmed,
+      likeCount: 0,
+      createdAt: DateTime.now(),
+    );
+
+    _inMemoryPosts.insert(0, post);
   }
 
   // ── 하트 토글 ──────────────────────────────────────────────────────────
-  /// 좋아요 여부를 확인하고 토글. [likedByMe] 현재 상태를 받아 반전.
   Future<void> toggleLike({
     required String postId,
     required String userId,
     required bool currentlyLiked,
   }) async {
-    final likeRef = _db
-        .collection(_postsCol)
-        .doc(postId)
-        .collection(_likesCol)
-        .doc(userId);
-    final postRef = _db.collection(_postsCol).doc(postId);
+    final index = _inMemoryPosts.indexWhere((post) => post.id == postId);
+    if (index == -1) return;
 
-    final batch = _db.batch();
+    final existing = _inMemoryPosts[index];
+    final nextLikeCount = currentlyLiked ? existing.likeCount - 1 : existing.likeCount + 1;
+    final next = existing.copyWith(
+      likeCount: nextLikeCount < 0 ? 0 : nextLikeCount,
+      likedByMe: !currentlyLiked,
+    );
+
+    _inMemoryPosts[index] = next;
+    final members = _likedByPost.putIfAbsent(postId, () => <String>{});
     if (currentlyLiked) {
-      batch.delete(likeRef);
-      batch.update(postRef, {'likeCount': FieldValue.increment(-1)});
+      members.remove(userId);
     } else {
-      batch.set(likeRef, {'userId': userId, 'createdAt': FieldValue.serverTimestamp()});
-      batch.update(postRef, {'likeCount': FieldValue.increment(1)});
+      members.add(userId);
     }
-    await batch.commit();
   }
 
   // ── 내가 좋아요 한 글 ID 목록 ─────────────────────────────────────────
   Future<Set<String>> fetchMyLikes(String userId, List<String> postIds) async {
     if (postIds.isEmpty) return {};
-    final futures = postIds.map((pid) => _db
-        .collection(_postsCol)
-        .doc(pid)
-        .collection(_likesCol)
-        .doc(userId)
-        .get());
-    final results = await Future.wait(futures);
-    return {
-      for (int i = 0; i < postIds.length; i++)
-        if (results[i].exists) postIds[i],
-    };
+    final result = <String>{};
+    for (final postId in postIds) {
+      final likedUsers = _likedByPost[postId] ?? const <String>{};
+      if (likedUsers.contains(userId)) {
+        result.add(postId);
+      }
+    }
+    return result;
   }
 }
 
 final communityRepositoryProvider = Provider<CommunityRepository>(
-  (ref) => CommunityRepository(ref.watch(firestoreProvider)),
+  (_) => CommunityRepository(),
 );

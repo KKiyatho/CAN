@@ -1,34 +1,23 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/firebase/auth_providers.dart';
-import '../../core/firebase/firebase_providers.dart';
+import '../../core/auth/auth_providers.dart';
 import 'user_profile.dart';
 
 class ProfileRepository {
-  ProfileRepository(this._db);
+  static final Map<String, UserProfile> _profiles = <String, UserProfile>{};
 
-  final FirebaseFirestore _db;
-
-  CollectionReference<Map<String, dynamic>> get _users => _db.collection('users');
+  ProfileRepository();
 
   Future<UserProfile?> fetchProfile(String uid) async {
     if (uid.trim().isEmpty) return null;
-    final doc = await _users.doc(uid).get();
-    if (!doc.exists) return null;
-    return UserProfile.fromMap(doc.data() ?? const {});
+    return _profiles[uid];
   }
 
   Future<void> saveProfile(UserProfile profile) async {
     if (profile.uid.trim().isEmpty) {
       throw ArgumentError('uid가 비어 있습니다.');
     }
-
-    final data = {
-      ...profile.toMap(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    await _users.doc(profile.uid).set(data, SetOptions(merge: true));
+    _profiles[profile.uid] = profile;
   }
 
   Future<UserProfile> resolveEffectiveProfile(AppUser user) async {
@@ -49,7 +38,7 @@ class ProfileRepository {
 }
 
 final profileRepositoryProvider = Provider<ProfileRepository>(
-  (ref) => ProfileRepository(ref.watch(firestoreProvider)),
+  (_) => ProfileRepository(),
 );
 
 final currentUserProfileProvider = FutureProvider<UserProfile?>((ref) async {

@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 // ---------------------------------------------------------------------------
 // CommunityPost 모델
 // ---------------------------------------------------------------------------
@@ -30,8 +28,7 @@ class CommunityPost {
     required this.createdAt,
   });
 
-  factory CommunityPost.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory CommunityPost.fromMap(Map<String, dynamic> data, {required String id}) {
     final rawContent = data['content'] as String? ?? '';
     final rawTitle = data['title'] as String?;
 
@@ -47,7 +44,7 @@ class CommunityPost {
     }
 
     return CommunityPost(
-      id: doc.id,
+      id: id,
       userId: data['userId'] as String? ?? '',
       displayName: (data['displayName'] as String? ?? 'Guest').trim(),
       avatarEmoji: (data['avatarEmoji'] as String? ?? '🐣').trim().isEmpty
@@ -58,7 +55,8 @@ class CommunityPost {
       title: resolvedTitle,
       content: resolvedContent,
       likeCount: (data['likeCount'] as num?)?.toInt() ?? 0,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: DateTime.tryParse(data['createdAt'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 
@@ -68,10 +66,10 @@ class CommunityPost {
         'avatarEmoji': avatarEmoji,
         if (avatarImageDataUrl != null) 'avatarImageDataUrl': avatarImageDataUrl,
         if (quoteId != null) 'quoteId': quoteId,
-      'title': title,
+        'title': title,
         'content': content,
         'likeCount': likeCount,
-        'createdAt': Timestamp.fromDate(createdAt),
+        'createdAt': createdAt.toIso8601String(),
       };
 
   CommunityPost copyWith({

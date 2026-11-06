@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 /// 불필요한 공백·줄바꿈을 정규화한다.
 /// - 연속 공백/탭/줄바꿈 → 단일 공백
 /// - 앞뒤 공백 제거
@@ -27,22 +25,6 @@ class Quote {
     this.tags = const [],
     required this.createdAt,
   });
-
-  factory Quote.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return Quote(
-      id: doc.id,
-      content: _normalize(data['content'] as String),
-      author: _normalize(data['author'] as String? ?? '미상'),
-      source: data['source'] != null
-          ? _normalize(data['source'] as String)
-          : null,
-      language: data['language'] as String? ?? 'ko',
-      isFeatured: data['isFeatured'] as bool? ?? false,
-      tags: List<String>.from(data['tags'] as List? ?? []),
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-    );
-  }
 
   /// 공유 텍스트 형식
   String get shareText =>

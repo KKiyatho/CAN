@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../core/firebase/firebase_providers.dart';
+
 import '../../shared/models/quote.dart';
 
 const _kBookmarksKey = 'bookmarked_quote_ids';
@@ -16,15 +15,11 @@ const _kDeviceIdKey = 'device_id';
 // QuoteRepository
 // ---------------------------------------------------------------------------
 class QuoteRepository {
-  final FirebaseFirestore _db;
-  QuoteRepository(this._db);
+  QuoteRepository();
 
   static List<Quote>? _localQuotesCache;
   static List<Quote>? _localKoreanQuotesCache;
   static List<Quote>? _builtinEnglishQuotesCache;
-  static List<Quote>? _firestoreQuotesCache;
-  static DateTime? _firestoreQuotesLoadedAt;
-  static const _firestoreCacheTtl = Duration(minutes: 10);
 
   static const Map<String, List<String>> _tagToLocalTokens = {
     '불안': ['anxiety', 'fear', 'worry', 'stress', 'sadness'],
@@ -103,8 +98,8 @@ class QuoteRepository {
     if (_localKoreanQuotesCache != null) return _localKoreanQuotesCache!;
     final now = DateTime(2020, 1, 1);
     _localKoreanQuotesCache = _koreanFallbackSeed
-      .take(50)
-      .toList()
+        .take(50)
+        .toList()
         .asMap()
         .entries
         .map(
@@ -224,53 +219,6 @@ class QuoteRepository {
       return [...en, ..._builtinKoreanQuotes()];
     }
     return _loadLocalQuotes();
-  }
-
-  Future<List<Quote>> _loadFirestoreQuotes({int maxDocs = 4000}) async {
-    final now = DateTime.now();
-    if (_firestoreQuotesCache != null && _firestoreQuotesLoadedAt != null) {
-      if (now.difference(_firestoreQuotesLoadedAt!) < _firestoreCacheTtl) {
-        return _firestoreQuotesCache!;
-      }
-    }
-
-    final all = <Quote>[];
-    DocumentSnapshot<Map<String, dynamic>>? cursor;
-    const pageSize = 400;
-
-    try {
-      while (all.length < maxDocs) {
-        Query<Map<String, dynamic>> query = _db
-            .collection('quotes')
-            .orderBy('createdAt', descending: true)
-            .limit(pageSize);
-
-        if (cursor != null) {
-          query = query.startAfterDocument(cursor);
-        }
-
-        final snap = await query.get();
-        if (snap.docs.isEmpty) break;
-        all.addAll(snap.docs.map(Quote.fromFirestore));
-        cursor = snap.docs.last;
-
-        if (snap.docs.length < pageSize) break;
-      }
-    } catch (_) {
-      // orderBy 인덱스 문제/권한 문제 등 발생 시 안전 폴백
-      try {
-        final fallback = await _db.collection('quotes').limit(500).get();
-        all
-          ..clear()
-          ..addAll(fallback.docs.map(Quote.fromFirestore));
-      } catch (_) {
-        // 오프라인/권한 오류 시 Firestore 결과 없이 로컬 검색으로 진행
-      }
-    }
-
-    _firestoreQuotesCache = all;
-    _firestoreQuotesLoadedAt = now;
-    return all;
   }
 
   List<Quote> _dedupQuotes(List<Quote> quotes) {
@@ -409,105 +357,34 @@ class QuoteRepository {
     }).toList();
   }
 
-  Future<List<Quote>> _firestoreSearchByTags(List<String> tags) async {
-    if (tags.isEmpty) return const [];
-    final normalizedTags = tags
-        .map((tag) => tag.trim())
-        .where((tag) => tag.isNotEmpty)
-        .toList();
-    if (normalizedTags.isEmpty) return const [];
-
-    final queryTags = normalizedTags.take(10).toList();
-    try {
-      final snapshot = await _db
-          .collection('quotes')
-          .where('tags', arrayContainsAny: queryTags)
-          .limit(200)
-          .get();
-      return snapshot.docs.map(Quote.fromFirestore).toList();
-    } catch (_) {
-      try {
-        final fallback = await _db
-            .collection('quotes')
-            .where('tags', arrayContains: queryTags.first)
-            .limit(200)
-            .get();
-        return fallback.docs.map(Quote.fromFirestore).toList();
-      } catch (_) {
-        return const [];
-      }
-    }
-  }
-
-  /// 오늘의 명언: isFeatured=true 중 랜덤 1개
-  /// [language]: 'ko' | 'en' | 'all'
   Future<Quote> fetchFeaturedQuote({String language = 'ko'}) async {
-    final snapshot = await _db
-        .collection('quotes')
-        .where('isFeatured', isEqualTo: true)
-        .limit(50)
-        .get();
-
-    if (snapshot.docs.isEmpty) {
-      throw Exception('명언 데이터가 없습니다. Firestore 시드 데이터를 확인하세요.\n'
-          '(firebase/seed_data.js 실행 또는 Firebase 콘솔에서 직접 추가)');
+    final local = _builtinQuotesForLanguage(language);
+    if (local.isEmpty) {
+      throw Exception('명언 데이터가 없습니다.');
     }
-
-    final filtered = snapshot.docs
-        .map(Quote.fromFirestore)
-        .where((q) => language == 'all' || q.language == language)
-        .toList()
-      ..shuffle();
-
-    if (filtered.isEmpty) {
-      if (language == 'ko') {
-        final localKo = await _loadLocalQuotesForLanguage('ko');
-        if (localKo.isNotEmpty) {
-          final koFeatured = localKo.where((q) => q.isFeatured).toList()..shuffle();
-          if (koFeatured.isNotEmpty) return koFeatured.first;
-          return localKo.first;
-        }
-      }
-      // 선택 언어 데이터 없으면 전체에서 랜덤
-      final all = snapshot.docs.map(Quote.fromFirestore).toList()..shuffle();
-      return all.first;
-    }
-    return filtered.first;
+    final shuffled = List<Quote>.from(local)..shuffle();
+    return shuffled.first;
   }
 
-  /// 키워드 검색 (클라이언트 사이드 필터링)
-  /// Firestore는 LIKE 검색을 지원하지 않아 전체 목록을 받아 필터링합니다.
   Future<QuotePage> searchByKeyword(
     String keyword, {
     int offset = 0,
     int limit = 20,
     String language = 'ko',
   }) async {
-    final firestoreAll = await _loadFirestoreQuotes(maxDocs: 1500);
+    final source = await _loadLocalQuotesForLanguage(language);
     final normalized = _normalize(keyword);
-    final firestoreMatches = firestoreAll.where((q) {
-      final c = _normalize(q.content);
-      final a = _normalize(q.author);
-      return c.contains(normalized) ||
-          a.contains(normalized) ||
-          q.tags.any((t) => _normalize(t).contains(normalized));
-    }).toList();
-
-    final localSource = await _loadLocalQuotesForLanguage(language);
-    final localMatches = localSource.where((q) {
+    final matches = source.where((q) {
       final content = _normalize(q.content);
       final author = _normalize(q.author);
       return content.contains(normalized) ||
           author.contains(normalized) ||
           q.tags.any((t) => _normalize(t).contains(normalized));
     }).toList();
-    final merged = _filterByLanguage(
-      _dedupQuotes([...firestoreMatches, ...localMatches]),
-      language,
-    );
+
+    final merged = _filterByLanguage(_dedupQuotes(matches), language);
     final ranked = _rankByKeyword(merged, keyword);
     final resolved = ranked.isNotEmpty ? ranked : _builtinQuotesForLanguage(language);
-
     final page = resolved.skip(offset).take(limit).toList();
     return QuotePage(
       quotes: page,
@@ -516,7 +393,6 @@ class QuoteRepository {
     );
   }
 
-  /// 태그 기반 검색 (Firestore arrayContainsAny)
   Future<QuotePage> searchByTags(
     List<String> tags, {
     int offset = 0,
@@ -527,15 +403,10 @@ class QuoteRepository {
       return const QuotePage(quotes: [], hasMore: false, nextOffset: 0);
     }
 
-    final firestoreMatches = await _firestoreSearchByTags(tags);
     final localMatches = await _localSearchByTags(tags, language: language);
-    final merged = _filterByLanguage(
-      _dedupQuotes([...firestoreMatches, ...localMatches]),
-      language,
-    );
+    final merged = _filterByLanguage(_dedupQuotes(localMatches), language);
     final ranked = _rankByTags(merged, tags);
-    var resolved =
-        ranked.isNotEmpty ? ranked : _builtinQuotesForLanguage(language);
+    var resolved = ranked.isNotEmpty ? ranked : _builtinQuotesForLanguage(language);
     if (language == 'ko') {
       resolved = _supplementKoreanByTags(resolved, tags);
     }
@@ -548,21 +419,13 @@ class QuoteRepository {
     );
   }
 
-  // -------------------------------------------------------------------------
-  // 카테고리 상세용 페이지네이션
-  // 정렬/병합 일관성을 위해 searchByTags 기반 offset 페이지네이션 사용
-  // -------------------------------------------------------------------------
-  /// [tag] 에 해당하는 명언을 [limit]개씩 가져온다.
-  /// [offset] 이후부터 다음 페이지를 반환한다.
-  /// language 필터는 클라이언트 사이드에서 처리한다.
   Future<TagPageResult> fetchByTagPaginated(
     String tag, {
-    DocumentSnapshot? lastDoc,
+    Object? lastDoc,
     int offset = 0,
     int limit = 20,
     String language = 'ko',
   }) async {
-    // lastDoc 기반은 유지 호환 용도이며, 실제 페이지네이션은 offset으로 처리
     final page = await searchByTags(
       [tag],
       offset: offset,
@@ -584,42 +447,22 @@ class QuoteRepository {
   }) async {
     final orderedIds = quoteIds
         .where((id) => id.trim().isNotEmpty)
-        .toList(growable: false);
+        .toSet()
+        .toList();
     if (orderedIds.isEmpty) return const [];
 
+    final source = await _loadLocalQuotesForLanguage('all');
     final map = <String, Quote>{};
-
-    final missing = <String>[];
-    for (var i = 0; i < orderedIds.length; i += 10) {
-      final chunk = orderedIds.skip(i).take(10).toList();
-      try {
-        final snap = await _db
-            .collection('quotes')
-            .where(FieldPath.documentId, whereIn: chunk)
-            .get();
-        for (final doc in snap.docs) {
-          final quote = Quote.fromFirestore(doc);
-          map[quote.id] = quote;
-        }
-      } catch (_) {
-        missing.addAll(chunk);
+    for (final quote in source) {
+      if (orderedIds.contains(quote.id)) {
+        map[quote.id] = quote;
       }
     }
 
-    final unresolved = orderedIds.where((id) => !map.containsKey(id)).toSet()
-      ..addAll(missing);
-    if (unresolved.isNotEmpty) {
-      final local = await _loadLocalQuotesForLanguage('all');
-      for (final quote in local) {
-        if (unresolved.contains(quote.id)) {
-          map[quote.id] = quote;
-        }
-      }
-      final builtin = _builtinQuotesForLanguage('all');
-      for (final quote in builtin) {
-        if (unresolved.contains(quote.id)) {
-          map[quote.id] = quote;
-        }
+    final builtin = _builtinQuotesForLanguage('all');
+    for (final quote in builtin) {
+      if (orderedIds.contains(quote.id)) {
+        map[quote.id] = quote;
       }
     }
 
@@ -632,7 +475,7 @@ class QuoteRepository {
 }
 
 final quoteRepositoryProvider = Provider<QuoteRepository>(
-  (ref) => QuoteRepository(ref.watch(firestoreProvider)),
+  (_) => QuoteRepository(),
 );
 
 // ---------------------------------------------------------------------------
@@ -642,7 +485,7 @@ class TagPageResult {
   final List<Quote> quotes;
 
   /// 레거시 호환용 필드 (현재는 사용하지 않음)
-  final DocumentSnapshot? lastDoc;
+  final Object? lastDoc;
 
   /// 더 불러올 데이터가 있는지 여부
   final bool hasMore;

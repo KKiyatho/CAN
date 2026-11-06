@@ -1,17 +1,15 @@
 ﻿import 'dart:ui' as ui;
 
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app_shell.dart';
-import 'core/firebase/auth_providers.dart';
+import 'core/auth/auth_providers.dart';
 import 'core/theme/theme_notifier.dart';
 import 'features/auth/login_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
-import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,9 +33,6 @@ Future<void> main() async {
     publishableKey: supabasePublishableKey,
   );
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
   runApp(const ProviderScope(child: CanApp()));
 }
 

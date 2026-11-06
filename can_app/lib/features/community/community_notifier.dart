@@ -1,8 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/firebase/auth_providers.dart';
+import '../../core/auth/auth_providers.dart';
 import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
 import 'community_post.dart';
@@ -17,7 +16,7 @@ class CommunityState {
   final bool isLoading;
   final bool isLoadingMore;
   final bool hasMore;
-  final DocumentSnapshot? lastDoc;
+  final String? lastDoc;
   final String? error;
 
   const CommunityState({
@@ -36,7 +35,7 @@ class CommunityState {
     bool? isLoading,
     bool? isLoadingMore,
     bool? hasMore,
-    DocumentSnapshot? lastDoc,
+    String? lastDoc,
     bool setLastDoc = false,
     String? error,
     bool clearError = false,
@@ -73,11 +72,9 @@ class CommunityNotifier extends Notifier<CommunityState> {
         repo.fetchTopPosts(),
       ]);
 
-      final feedResult = results[0]
-          as ({List<CommunityPost> posts, DocumentSnapshot? lastDoc});
+      final feedResult = results[0] as ({List<CommunityPost> posts, String? lastDoc});
       final topPosts = results[1] as List<CommunityPost>;
 
-      // 좋아요 여부 조회
       final userId = ref.read(currentUserIdProvider);
       final withLikes = await _applyLikes(feedResult.posts, userId);
 
@@ -137,7 +134,6 @@ class CommunityNotifier extends Notifier<CommunityState> {
     final nowLiked = !post.likedByMe;
     final delta = nowLiked ? 1 : -1;
 
-    // 낙관적 업데이트
     final updated = List<CommunityPost>.from(state.posts);
     updated[idx] = post.copyWith(
       likeCount: post.likeCount + delta,
@@ -147,12 +143,11 @@ class CommunityNotifier extends Notifier<CommunityState> {
 
     try {
       await ref.read(communityRepositoryProvider).toggleLike(
-            postId: postId,
-            userId: userId,
-            currentlyLiked: post.likedByMe,
-          );
+        postId: postId,
+        userId: userId,
+        currentlyLiked: post.likedByMe,
+      );
     } catch (e) {
-      // 실패 시 롤백
       if (kDebugMode) debugPrint('[Community] toggleLike 실패: $e');
       final rollback = List<CommunityPost>.from(state.posts);
       rollback[idx] = post;

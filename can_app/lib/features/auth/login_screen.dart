@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../core/firebase/auth_providers.dart';
+import '../../core/auth/auth_providers.dart';
 import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
 
@@ -33,6 +33,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isSubmitting = true);
     try {
       await signInAnonymouslyIfNeeded();
+    } on AuthException catch (e) {
+      _showError(e.message);
     } catch (_) {
       if (!mounted) return;
       _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.genericError'));
