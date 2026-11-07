@@ -19,6 +19,7 @@ class SearchState {
   final bool hasMore;
   final int nextOffset;
   final String aiMessage;
+  final List<Quote> similar;
 
   const SearchState({
     this.keyword = '',
@@ -29,6 +30,7 @@ class SearchState {
     this.hasMore = false,
     this.nextOffset = 0,
     this.aiMessage = '',
+    this.similar = const [],
   });
 
   SearchState copyWith({
@@ -40,6 +42,7 @@ class SearchState {
     bool? hasMore,
     int? nextOffset,
     String? aiMessage,
+    List<Quote>? similar,
   }) =>
       SearchState(
         keyword: keyword ?? this.keyword,
@@ -51,6 +54,7 @@ class SearchState {
         nextOffset: nextOffset ?? this.nextOffset,
         // results 가 바뀔 때 AI 메시지를 명시하지 않으면 초기화
         aiMessage: aiMessage ?? (results != null ? '' : this.aiMessage),
+        similar: similar ?? (results != null ? const [] : this.similar),
       );
 }
 
@@ -141,6 +145,7 @@ class SearchNotifier extends Notifier<SearchState> {
     if (ai != null) {
       state = state.copyWith(
         aiMessage: ai.message,
+        similar: ai.similar,
         results: AsyncValue.data([ai.quote]),
         hasMore: false,
         nextOffset: 0,

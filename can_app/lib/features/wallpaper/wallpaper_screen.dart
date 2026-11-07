@@ -12,6 +12,7 @@ import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../features/home/quote_repository.dart';
 import '../../shared/models/quote.dart';
+import 'image_download.dart';
 
 // ---------------------------------------------------------------------------
 // 배경화면 상태
@@ -244,17 +245,13 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
 
   Future<void> _saveToGallery() async {
     final lang = ref.read(themeNotifierProvider).languageCode;
-    if (kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(I18n.t(lang, 'wallpaper.webSaveUnsupported'))),
-      );
-      return;
-    }
 
     setState(() => _ws = _ws.copyWith(isSaving: true));
     try {
-      final hasAccess = await Gal.hasAccess(toAlbum: true);
-      if (!hasAccess) await Gal.requestAccess(toAlbum: true);
+      if (!kIsWeb) {
+        final hasAccess = await Gal.hasAccess(toAlbum: true);
+        if (!hasAccess) await Gal.requestAccess(toAlbum: true);
+      }
 
       final boundary = _repaintKey.currentContext?.findRenderObject()
           as RenderRepaintBoundary?;
@@ -265,8 +262,12 @@ class _WallpaperScreenState extends ConsumerState<WallpaperScreen> {
           await image.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null) return;
 
-      await Gal.putImageBytes(byteData.buffer.asUint8List(),
-          name: 'can_wallpaper');
+      final bytes = byteData.buffer.asUint8List();
+      if (kIsWeb) {
+        downloadPng(bytes, 'can_wallpaper.png');
+      } else {
+        await Gal.putImageBytes(bytes, name: 'can_wallpaper');
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -11,6 +11,8 @@ import '../../shared/models/quote.dart';
 const _kBookmarksKey = 'bookmarked_quote_ids';
 const _kLikesKey = 'liked_quote_ids';
 const _kDeviceIdKey = 'device_id';
+const _kAiQuotesKey = 'ai_quotes_cache';
+const _kAiQuotesMax = 200;
 
 // ---------------------------------------------------------------------------
 // QuoteRepository
@@ -203,6 +205,9 @@ class QuoteRepository {
     if (ids.isEmpty) return const [];
     final source = await _quotesFor('all');
     final map = {for (final q in source) q.id: q};
+    for (final q in await _loadAiQuotes()) {
+      map[q.id] = q;
+    }
     final ordered = ids.map((id) => map[id]).whereType<Quote>().toList();
     if (language == 'all') return ordered;
     return ordered.where((q) => q.language == language).toList();
@@ -224,26 +229,89 @@ class QuoteRepository {
           .timeout(const Duration(seconds: 20));
       if (res.statusCode != 200) return null;
       final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-      final id = data['id'] as String?;
-      if (id == null) return null;
-      final quotes = await _quotesFor(language);
-      final wantedId = language == 'en' ? '${id}_en' : id;
-      final quote = quotes.where((q) => q.id == wantedId).firstOrNull;
-      if (quote == null) return null;
+      final main = _aiQuote(data['quote'], language);
+      if (main == null) return null;
+      final similar = (data['similar'] as List<dynamic>? ?? const [])
+          .map((e) => _aiQuote(e, language))
+          .whereType<Quote>()
+          .toList();
+      await _saveAiQuotes([main, ...similar]);
       return AiRecommendation(
-        quote: quote,
+        quote: main,
+        similar: similar,
         message: (data['message'] as String?)?.trim() ?? '',
       );
     } catch (_) {
       return null;
     }
   }
+
+  /// AI 명언 영속 캐시 (북마크/좋아요 목록에서 다시 찾을 수 있도록 보관)
+  Future<List<Quote>> _loadAiQuotes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_kAiQuotesKey) ?? const [];
+    final out = <Quote>[];
+    for (final s in raw) {
+      try {
+        out.add(Quote.fromMap(jsonDecode(s) as Map<String, dynamic>));
+      } catch (_) {}
+    }
+    return out;
+  }
+
+  Future<void> _saveAiQuotes(List<Quote> fresh) async {
+    final prefs = await SharedPreferences.getInstance();
+    final keep = {
+      ...(prefs.getStringList(_kBookmarksKey) ?? const <String>[]),
+      ...(prefs.getStringList(_kLikesKey) ?? const <String>[]),
+    };
+    final byId = {for (final q in await _loadAiQuotes()) q.id: q};
+    for (final q in fresh) {
+      byId[q.id] = q;
+    }
+    // 오래된 것부터 제거하되 북마크/좋아요된 명언은 유지
+    final ids = byId.keys.toList();
+    var overflow = ids.length - _kAiQuotesMax;
+    for (final id in ids) {
+      if (overflow <= 0) break;
+      if (!keep.contains(id)) {
+        byId.remove(id);
+        overflow--;
+      }
+    }
+    await prefs.setStringList(
+      _kAiQuotesKey,
+      byId.values.map((q) => jsonEncode(q.toMap())).toList(),
+    );
+  }
+
+  /// AI 가 찾아온 명언 JSON → Quote (로컬 데이터셋에 없는 외부 명언)
+  Quote? _aiQuote(Object? raw, String language) {
+    if (raw is! Map<String, dynamic>) return null;
+    final content = (raw['content'] as String?)?.trim() ?? '';
+    final author = (raw['author'] as String?)?.trim() ?? '';
+    if (content.isEmpty || author.isEmpty) return null;
+    return Quote(
+      id: 'ai_${content.hashCode}',
+      content: content,
+      author: author,
+      source: raw['source'] as String?,
+      language: language,
+      isFeatured: false,
+      createdAt: DateTime.now(),
+    );
+  }
 }
 
 class AiRecommendation {
   final Quote quote;
+  final List<Quote> similar;
   final String message;
-  const AiRecommendation({required this.quote, required this.message});
+  const AiRecommendation({
+    required this.quote,
+    this.similar = const [],
+    required this.message,
+  });
 }
 
 final quoteRepositoryProvider = Provider<QuoteRepository>(

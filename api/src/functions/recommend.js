@@ -1,6 +1,5 @@
 const { app } = require('@azure/functions');
 const { DefaultAzureCredential } = require('@azure/identity');
-const QUOTES = require('../../data/quotes.json');
 
 const ENDPOINT = process.env.AOAI_ENDPOINT; // https://<name>.cognitiveservices.azure.com
 const DEPLOYMENT = process.env.AOAI_DEPLOYMENT || 'gpt-4-1-nano';
@@ -11,10 +10,6 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
   .filter(Boolean);
 
 const credential = new DefaultAzureCredential();
-const BY_ID = new Map(QUOTES.map((q) => [q.id, q]));
-
-// 모델에는 후보 목록(id|저자|주제|앞부분)만 전달 → 모델은 id만 고른다. (명언 내용을 새로 만들지 않음)
-const CANDIDATES = QUOTES.map((q) => `${q.id}|${q.authorKo}|${q.topics.join('/')}|${q.ko.slice(0, 40)}`).join('\n');
 
 // 인스턴스 단위 간단 레이트 리미트 (IP당 분당 20회)
 const hits = new Map();
@@ -38,15 +33,27 @@ function corsHeaders(origin) {
     : {};
 }
 
-const SYSTEM = `You pick the single best quotation for a user's emotion or situation from a fixed candidate list.
-Candidate format: id|author|topics|beginning of quote.
+function systemPrompt(lang) {
+  const language = lang === 'en' ? 'English' : 'Korean';
+  return `You are a compassionate quote curator. The user describes their situation or feelings.
+Find real, well-documented quotations by real historical or contemporary people that would help them most.
 Rules:
-- Choose exactly ONE id from the list that best comforts, encourages or guides the user's situation. Never invent ids.
-- Respond ONLY with JSON: {"id": string, "message": string}
-- "message" is one short empathetic Korean sentence (max 60 chars) addressed to the user.
+- "quote": the single most helpful quotation for this exact situation.
+- "similar": exactly 4 other quotations with a similar theme or comforting angle (different authors, no duplicates of "quote").
+- Only use quotations that are widely and reliably attributed to the named author. If unsure of the attribution or wording, choose a different quotation. Never invent quotes or authors.
+- Write each quotation text in ${language} (translate faithfully if the original is in another language). Keep each under 200 characters.
+- "author" is the real person's name in ${language}. "source" is the book/speech/work if known, otherwise null.
+- "message": one short empathetic sentence in ${language} (max 60 chars) addressed to the user.
+- Respond ONLY with JSON: {"message": string, "quote": {"content": string, "author": string, "source": string|null}, "similar": [{"content": string, "author": string, "source": string|null}]}`;
+}
 
-Candidates:
-${CANDIDATES}`;
+function cleanQuote(q) {
+  const content = String(q?.content ?? '').trim().slice(0, 300);
+  const author = String(q?.author ?? '').trim().slice(0, 80);
+  if (!content || !author) return null;
+  const source = q?.source ? String(q.source).trim().slice(0, 120) : null;
+  return { content, author, source };
+}
 
 app.http('recommend', {
   methods: ['POST', 'OPTIONS'],
@@ -87,11 +94,11 @@ app.http('recommend', {
         },
         body: JSON.stringify({
           messages: [
-            { role: 'system', content: SYSTEM },
-            { role: 'user', content: `Emotion/situation: ${input}` },
+            { role: 'system', content: systemPrompt(lang) },
+            { role: 'user', content: `Situation: ${input}` },
           ],
-          temperature: 0.8,
-          max_tokens: 120,
+          temperature: 0.7,
+          max_tokens: 1200,
           response_format: { type: 'json_object' },
         }),
       });
@@ -101,22 +108,22 @@ app.http('recommend', {
       }
       const data = await res.json();
       const parsed = JSON.parse(data.choices[0].message.content);
-      const idMatch = String(parsed.id ?? '').match(/q\d{4}/);
-      const q = idMatch ? BY_ID.get(idMatch[0]) : null;
-      if (!q) {
-        context.error('invalid id from model', data.choices[0].message.content);
+      const main = cleanQuote(parsed.quote);
+      if (!main) {
+        context.error('invalid quote from model', data.choices[0].message.content);
         continue;
       }
+      const similar = (Array.isArray(parsed.similar) ? parsed.similar : [])
+        .map(cleanQuote)
+        .filter((q) => q && q.content !== main.content)
+        .slice(0, 4);
       return {
         status: 200,
         headers: cors,
         jsonBody: {
-          id: q.id,
-          content: lang === 'en' ? q.en : q.ko,
-          author: lang === 'en' ? q.authorEn : q.authorKo,
-          occupation: q.occupation,
-          source: q.source,
-          message: lang === 'en' ? null : String(parsed.message || ''),
+          message: String(parsed.message || '').trim().slice(0, 120),
+          quote: main,
+          similar,
           language: lang,
         },
       };

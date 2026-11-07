@@ -635,6 +635,45 @@ class _ResultsView extends StatelessWidget {
                   ],
                 ),
               ),
+            if (state.similar.isNotEmpty)
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  children: [
+                    QuoteCard(quote: quotes.first),
+                    const SizedBox(height: 8),
+                    Card(
+                      elevation: 0,
+                      color: colorScheme.surfaceContainerHighest,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Theme(
+                        data: theme.copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          leading: const Icon(Icons.auto_awesome, size: 18),
+                          title: Text(
+                            lang == 'en'
+                                ? 'See similar quotes'
+                                : '유사한 명언 보기',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          childrenPadding:
+                              const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                          children: [
+                            for (final q in state.similar)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: QuoteCard(quote: q),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
             Expanded(
               child: ListView.builder(
                 controller: scrollController,
