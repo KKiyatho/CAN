@@ -75,7 +75,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isSubmitting = true);
     try {
       final client = ref.read(supabaseClientProvider);
-      final redirect = kIsWeb ? Uri.base.toString() : 'can://login-callback';
+      // 웹: 쿼리/해시를 뺀 origin 만 사용 (Supabase Redirect URLs 허용 목록과 일치시키기 위함)
+      final redirect = kIsWeb ? Uri.base.origin : 'can://login-callback';
       await client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: redirect,
