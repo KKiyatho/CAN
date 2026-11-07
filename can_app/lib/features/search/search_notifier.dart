@@ -18,6 +18,7 @@ class SearchState {
   final AsyncValue<List<Quote>> results;
   final bool hasMore;
   final int nextOffset;
+  final String aiMessage;
 
   const SearchState({
     this.keyword = '',
@@ -27,6 +28,7 @@ class SearchState {
     this.results = const AsyncValue.data([]),
     this.hasMore = false,
     this.nextOffset = 0,
+    this.aiMessage = '',
   });
 
   SearchState copyWith({
@@ -37,6 +39,7 @@ class SearchState {
     AsyncValue<List<Quote>>? results,
     bool? hasMore,
     int? nextOffset,
+    String? aiMessage,
   }) =>
       SearchState(
         keyword: keyword ?? this.keyword,
@@ -46,6 +49,8 @@ class SearchState {
         results: results ?? this.results,
         hasMore: hasMore ?? this.hasMore,
         nextOffset: nextOffset ?? this.nextOffset,
+        // results 가 바뀔 때 AI 메시지를 명시하지 않으면 초기화
+        aiMessage: aiMessage ?? (results != null ? '' : this.aiMessage),
       );
 }
 
@@ -119,7 +124,7 @@ class SearchNotifier extends Notifier<SearchState> {
     await searchByEmotion(input);
   }
 
-  /// 감정 문장 입력 → 태그 추출 → 태그 검색
+  /// 감정 문장 입력 → AI 가 실존 인물 명언 1개 추천 (실패 시 태그/키워드 검색 폴백)
   Future<void> searchByEmotion(String input) async {
     if (input.trim().isEmpty) return;
     await _saveRecentSearch(input);
@@ -132,6 +137,16 @@ class SearchNotifier extends Notifier<SearchState> {
       hasMore: false,
       nextOffset: 0,
     );
+    final ai = await _repo.recommendByEmotion(input, language: _language);
+    if (ai != null) {
+      state = state.copyWith(
+        aiMessage: ai.message,
+        results: AsyncValue.data([ai.quote]),
+        hasMore: false,
+        nextOffset: 0,
+      );
+      return;
+    }
     try {
       // 1) 태그 검색
       if (tags.isNotEmpty) {

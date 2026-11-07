@@ -1,29 +1,29 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:can_app/features/home/quote_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:can_app/app_shell.dart';
 
 void main() {
-  testWidgets('앱 쉘이 기본 탭을 렌더링한다', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(
-          home: AppShell(),
-        ),
-      ),
-    );
+  TestWidgetsFlutterBinding.ensureInitialized();
+  final repo = QuoteRepository();
+  const jobs = ['철학자', '기업가', '작가', '과학자', '예술가', '운동선수', '정치가', '종교인'];
 
-    await tester.pump();
+  test('모든 직업 카테고리에 실존 인물 명언이 있다', () async {
+    for (final job in jobs) {
+      final r = await repo.fetchByTagPaginated('job:$job', limit: 1000);
+      expect(r.quotes.length, greaterThanOrEqualTo(20), reason: job);
+      expect(r.quotes.every((q) => q.author != 'CAN' && q.author.isNotEmpty), isTrue);
+    }
+  });
 
-    expect(find.text('홈'), findsOneWidget);
-    expect(find.text('검색/추천'), findsOneWidget);
-    expect(find.byType(NavigationBar), findsOneWidget);
+  test('한국어/영어 명언이 모두 로드되고 저자가 있다', () async {
+    for (final lang in ['ko', 'en']) {
+      final q = await repo.fetchFeaturedQuote(language: lang);
+      expect(q.language, lang);
+      expect(q.author.trim(), isNotEmpty);
+    }
+  });
+
+  test('키워드 검색은 결과 없으면 빈 목록을 반환한다', () async {
+    final r = await repo.searchByKeyword('zzzzqqqq없는말');
+    expect(r.quotes, isEmpty);
   });
 }

@@ -40,6 +40,9 @@ dependencies:
   # Supabase 인증/세션
   supabase_flutter: ^2.9.0
 
+  # 감정 추천 API 호출
+  http: ^1.2.2
+
   # 공유 기능
   share_plus: ^10.1.4
 
@@ -71,7 +74,7 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/quotes.json
+    - assets/quotes_curated.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

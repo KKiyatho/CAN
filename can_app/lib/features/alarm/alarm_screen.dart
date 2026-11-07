@@ -51,24 +51,30 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
   }
 
   Future<void> _showCreateSheet() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => const _AlarmEditSheet(),
-    );
+    await _openAlarmEditorSheet();
   }
 
   Future<void> _showEditSheet(AlarmModel alarm) async {
+    await _openAlarmEditorSheet(existing: alarm);
+  }
+
+  Future<void> _openAlarmEditorSheet({AlarmModel? existing}) async {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      enableDrag: false,
+      useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.82,
+      ),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _AlarmEditSheet(existing: alarm),
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: _AlarmEditSheet(existing: existing),
+      ),
     );
   }
 
@@ -311,10 +317,12 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
         top: 24,
         bottom: math.max(0.0, MediaQuery.of(context).viewInsets.bottom) + 24,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: SingleChildScrollView(
+        padding: EdgeInsets.zero,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // ── 핸들 ────────────────────────────────────────────────────────
           Center(
             child: Container(
@@ -352,7 +360,7 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
                         itemExtent: 44,
                         diameterRatio: 1.8,
                         perspective: 0.003,
-                        physics: const BouncingScrollPhysics(),
+                        physics: const FixedExtentScrollPhysics(),
                         onSelectedItemChanged: (i) =>
                             setState(() => _hour = i),
                         childDelegate: ListWheelChildBuilderDelegate(
@@ -401,7 +409,7 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
                         itemExtent: 44,
                         diameterRatio: 1.8,
                         perspective: 0.003,
-                        physics: const BouncingScrollPhysics(),
+                        physics: const FixedExtentScrollPhysics(),
                         onSelectedItemChanged: (i) =>
                             setState(() => _minute = i),
                         childDelegate: ListWheelChildBuilderDelegate(
@@ -483,7 +491,9 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
                   : I18n.t(lang, 'alarm.add')),
             ),
           ),
+          const SizedBox(height: 8),
         ],
+        ),
       ),
     );
   }

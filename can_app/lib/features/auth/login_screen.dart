@@ -75,7 +75,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isSubmitting = true);
     try {
       final client = ref.read(supabaseClientProvider);
-      final redirect = kIsWeb ? null : 'can://login-callback';
+      final redirect = kIsWeb ? Uri.base.toString() : 'can://login-callback';
       await client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: redirect,

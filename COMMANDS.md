@@ -172,3 +172,13 @@ localhost
 | `h` | 단축키 전체 목록 |
 | `q` | 종료 |
 | `d` | Detach (앱 유지하고 detach) |
+
+---
+
+## AI 백엔드 (Azure)
+
+- 리소스 그룹: rg-can-free
+- Azure AI: can-ai-55425 (gpt-4-1-mini 런타임, gpt-4-1-nano 보조), Function App: can-api-55425 (POST /api/recommend)
+- API 배포: `cd api; func azure functionapp publish can-api-55425`
+- 웹 배포: `cd can_app; flutter build web --release; az storage blob upload-batch --account-name canweb125962 --source .\build\web --destination '$web' --overwrite`
+- 명언 시드 재생성: `cd api; $env:AOAI_KEY=<키>; node scripts/generate-seed.js`

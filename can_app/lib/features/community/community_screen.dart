@@ -195,15 +195,18 @@ class _TopPostsSection extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 100,
+          height: 132,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             itemCount: posts.length,
-            itemBuilder: (ctx, i) => _TopPostCard(
-              rank: i + 1,
-              post: posts[i],
-              lang: lang,
+            itemBuilder: (ctx, i) => SizedBox(
+              width: 176,
+              child: _TopPostCard(
+                rank: i + 1,
+                post: posts[i],
+                lang: lang,
+              ),
             ),
           ),
         ),
@@ -226,12 +229,15 @@ class _TopPostCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
-      width: 160,
       margin: const EdgeInsets.symmetric(horizontal: 4),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.3),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,7 +256,7 @@ class _TopPostCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             lang == 'en'
                 ? '#$rank'
@@ -260,19 +266,17 @@ class _TopPostCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           if (post.title.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                post.title,
-                style: textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            Text(
+              post.title,
+              style: textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
+          const SizedBox(height: 4),
           Expanded(
             child: Text(
               post.content,
@@ -281,6 +285,7 @@ class _TopPostCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(height: 4),
           Row(
             children: [
               Icon(Icons.favorite, size: 12, color: cs.error),

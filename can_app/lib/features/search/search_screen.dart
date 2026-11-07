@@ -51,49 +51,49 @@ const _kCategories = [
   // ── 직업별 ──────────────────────────────────────────────────
   _Category(
     label: '철학자',
-    tag: '철학',
+    tag: 'job:철학자',
     gradient: [Color(0xFF667EEA), Color(0xFF764BA2)],
     imageUrl: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '기업가',
-    tag: '성공',
+    tag: 'job:기업가',
     gradient: [Color(0xFF11998E), Color(0xFF38EF7D)],
     imageUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '작가',
-    tag: '독서',
+    tag: 'job:작가',
     gradient: [Color(0xFFFC5C7D), Color(0xFF6A3093)],
     imageUrl: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '과학자',
-    tag: '지혜',
+    tag: 'job:과학자',
     gradient: [Color(0xFF4776E6), Color(0xFF8E54E9)],
     imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '예술가',
-    tag: '창의력',
+    tag: 'job:예술가',
     gradient: [Color(0xFFFF512F), Color(0xFFDD2476)],
     imageUrl: 'https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '운동선수',
-    tag: '도전',
+    tag: 'job:운동선수',
     gradient: [Color(0xFF00C9FF), Color(0xFF0077B6)],
     imageUrl: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '정치가',
-    tag: '용기',
+    tag: 'job:정치가',
     gradient: [Color(0xFFF7971E), Color(0xFFFFD200)],
     imageUrl: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=400&q=80&fit=crop',
   ),
   _Category(
     label: '종교인',
-    tag: '믿음',
+    tag: 'job:종교인',
     gradient: [Color(0xFF56CCF2), Color(0xFF2F80ED)],
     imageUrl: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&q=80&fit=crop',
   ),
@@ -304,7 +304,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       onTap: _selectCategory,
                       onTagTap: (tag) => ref
                           .read(searchNotifierProvider.notifier)
-                          .searchByTag(tag),
+                          .searchUnified(tag),
                     ),
             ),
           ],
@@ -622,7 +622,9 @@ class _ResultsView extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        '"${state.emotionInput}"${I18n.t(lang, 'search.emotionResult')}',
+                        state.aiMessage.isNotEmpty
+                            ? state.aiMessage
+                            : '"${state.emotionInput}"${I18n.t(lang, 'search.emotionResult')}',
                         style: theme.textTheme.labelMedium?.copyWith(
                           color: colorScheme.primary,
                           fontWeight: FontWeight.w600,
