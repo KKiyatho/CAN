@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/gestures.dart'
+    show GestureBinding, PointerScrollEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -278,6 +280,37 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
     super.dispose();
   }
 
+  /// 휠 항목 공통 래퍼: 마우스 휠은 정확히 1칸씩, 탭하면 해당 숫자로 이동.
+  /// (기본 동작은 휠 델타(~100px)가 2칸 이상으로 환산되어 건너뛰는 문제가 있음)
+  Widget _wheelCell(
+    FixedExtentScrollController controller,
+    int index,
+    int count,
+    Widget child,
+  ) {
+    const duration = Duration(milliseconds: 120);
+    return Listener(
+      onPointerSignal: (event) {
+        if (event is! PointerScrollEvent) return;
+        // 가장 안쪽 리스너가 먼저 등록되므로 기본 스크롤 처리보다 우선한다.
+        GestureBinding.instance.pointerSignalResolver.register(event, (e) {
+          final dy = (e as PointerScrollEvent).scrollDelta.dy;
+          if (dy == 0) return;
+          final next =
+              (controller.selectedItem + (dy > 0 ? 1 : -1)).clamp(0, count - 1);
+          controller.animateToItem(next,
+              duration: duration, curve: Curves.easeOut);
+        });
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => controller.animateToItem(index,
+            duration: duration, curve: Curves.easeOut),
+        child: child,
+      ),
+    );
+  }
+
   Future<void> _save() async {
     // 해제 문구 검증: 빈 값이면 기본값, 30자 초과 방어
     final lang = ref.read(themeNotifierProvider).languageCode;
@@ -364,14 +397,19 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
                         onSelectedItemChanged: (i) =>
                             setState(() => _hour = i),
                         childDelegate: ListWheelChildBuilderDelegate(
-                          builder: (_, i) => Center(
-                            child: Text(
-                              i.toString().padLeft(2, '0'),
-                              style: textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: _hour == i
-                                    ? cs.primary
-                                    : cs.onSurface.withValues(alpha: 0.4),
+                          builder: (_, i) => _wheelCell(
+                            _hourController,
+                            i,
+                            24,
+                            Center(
+                              child: Text(
+                                i.toString().padLeft(2, '0'),
+                                style: textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: _hour == i
+                                      ? cs.primary
+                                      : cs.onSurface.withValues(alpha: 0.4),
+                                ),
                               ),
                             ),
                           ),
@@ -413,14 +451,19 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
                         onSelectedItemChanged: (i) =>
                             setState(() => _minute = i),
                         childDelegate: ListWheelChildBuilderDelegate(
-                          builder: (_, i) => Center(
-                            child: Text(
-                              i.toString().padLeft(2, '0'),
-                              style: textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: _minute == i
-                                    ? cs.primary
-                                    : cs.onSurface.withValues(alpha: 0.4),
+                          builder: (_, i) => _wheelCell(
+                            _minuteController,
+                            i,
+                            60,
+                            Center(
+                              child: Text(
+                                i.toString().padLeft(2, '0'),
+                                style: textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: _minute == i
+                                      ? cs.primary
+                                      : cs.onSurface.withValues(alpha: 0.4),
+                                ),
                               ),
                             ),
                           ),
