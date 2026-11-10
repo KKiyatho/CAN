@@ -8,8 +8,11 @@ class AlarmModel {
   final int hour;
   final int minute;
   final List<bool> repeatDays; // 7개: [월, 화, 수, 목, 금, 토, 일]
-  final String unlockPhrase;   // 타이핑 해제 문구
+  final String unlockPhrase; // 타이핑 해제 문구
   final bool isActive;
+
+  /// 생성/수정 시 확정한 첫 실행 시각. null인 구버전 데이터는 저장소에서 이관한다.
+  final int? nextOccurrenceMs;
 
   const AlarmModel({
     required this.id,
@@ -18,6 +21,7 @@ class AlarmModel {
     required this.repeatDays,
     required this.unlockPhrase,
     this.isActive = true,
+    this.nextOccurrenceMs,
   });
 
   factory AlarmModel.create({
@@ -26,15 +30,14 @@ class AlarmModel {
     required int minute,
     List<bool>? repeatDays,
     String? unlockPhrase,
-  }) =>
-      AlarmModel(
-        id: id,
-        hour: hour,
-        minute: minute,
-        repeatDays: repeatDays ?? List.filled(7, false),
-        unlockPhrase: unlockPhrase ?? '나는 할 수 있다',
-        isActive: true,
-      );
+  }) => AlarmModel(
+    id: id,
+    hour: hour,
+    minute: minute,
+    repeatDays: repeatDays ?? List.filled(7, false),
+    unlockPhrase: unlockPhrase ?? '나는 할 수 있다',
+    isActive: true,
+  );
 
   AlarmModel copyWith({
     int? hour,
@@ -42,33 +45,36 @@ class AlarmModel {
     List<bool>? repeatDays,
     String? unlockPhrase,
     bool? isActive,
-  }) =>
-      AlarmModel(
-        id: id,
-        hour: hour ?? this.hour,
-        minute: minute ?? this.minute,
-        repeatDays: repeatDays ?? List.from(this.repeatDays),
-        unlockPhrase: unlockPhrase ?? this.unlockPhrase,
-        isActive: isActive ?? this.isActive,
-      );
+    int? nextOccurrenceMs,
+  }) => AlarmModel(
+    id: id,
+    hour: hour ?? this.hour,
+    minute: minute ?? this.minute,
+    repeatDays: repeatDays ?? List.from(this.repeatDays),
+    unlockPhrase: unlockPhrase ?? this.unlockPhrase,
+    isActive: isActive ?? this.isActive,
+    nextOccurrenceMs: nextOccurrenceMs ?? this.nextOccurrenceMs,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'hour': hour,
-        'minute': minute,
-        'repeatDays': repeatDays,
-        'unlockPhrase': unlockPhrase,
-        'isActive': isActive,
-      };
+    'id': id,
+    'hour': hour,
+    'minute': minute,
+    'repeatDays': repeatDays,
+    'unlockPhrase': unlockPhrase,
+    'isActive': isActive,
+    'nextOccurrenceMs': nextOccurrenceMs,
+  };
 
   factory AlarmModel.fromJson(Map<String, dynamic> json) => AlarmModel(
-        id: json['id'] as String,
-        hour: json['hour'] as int,
-        minute: json['minute'] as int,
-        repeatDays: (json['repeatDays'] as List).cast<bool>(),
-        unlockPhrase: json['unlockPhrase'] as String,
-        isActive: json['isActive'] as bool,
-      );
+    id: json['id'] as String,
+    hour: json['hour'] as int,
+    minute: json['minute'] as int,
+    repeatDays: (json['repeatDays'] as List).cast<bool>(),
+    unlockPhrase: json['unlockPhrase'] as String,
+    isActive: json['isActive'] as bool,
+    nextOccurrenceMs: json['nextOccurrenceMs'] as int?,
+  );
 
   String get timeLabel {
     final h = hour.toString().padLeft(2, '0');
@@ -94,8 +100,7 @@ class AlarmModel {
   static String encodeList(List<AlarmModel> list) =>
       jsonEncode(list.map((a) => a.toJson()).toList());
 
-  static List<AlarmModel> decodeList(String raw) =>
-      (jsonDecode(raw) as List)
-          .map((e) => AlarmModel.fromJson(e as Map<String, dynamic>))
-          .toList();
+  static List<AlarmModel> decodeList(String raw) => (jsonDecode(raw) as List)
+      .map((e) => AlarmModel.fromJson(e as Map<String, dynamic>))
+      .toList();
 }

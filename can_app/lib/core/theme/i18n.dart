@@ -8,6 +8,18 @@ class I18n {
   }
 
   static const Map<String, String> _ko = {
+    'common.retry': '다시 시도',
+    'common.empty': '결과가 없습니다.',
+    'common.comingSoon': '{title} 기능은 준비 중입니다.',
+    'login.credentials': '이메일 또는 비밀번호를 확인해 주세요.',
+    'login.confirmEmail': '이메일 인증을 완료한 후 로그인해 주세요.',
+    'login.rateLimit': '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.',
+    'qr.title': 'CAN을 휴대폰에서',
+    'qr.scan': '카메라로 QR 코드를 스캔하세요',
+    'qr.open': '휴대폰으로 CAN 열기 QR 코드',
+    'qr.install': '휴대폰 브라우저에서\n‘홈 화면에 추가’로 더 편하게',
+    'qr.alarmNotice': '웹 알람은 앱을 열어 둔 동안 동작합니다.\n종료·화면 잠금 시 울림은 보장되지 않습니다.',
+    'login.validation': '이메일과 비밀번호(6자 이상)를 확인해 주세요.',
     'tab.home': '홈',
     'tab.search': '검색/추천',
     'tab.community': '커뮤니티',
@@ -16,7 +28,7 @@ class I18n {
     'home.languageTooltip': '언어 선택',
     'home.darkModeTooltip': '다크/라이트 모드',
     'home.themeTitle': '테마 색상',
-    'home.languageTitle': '명언 언어',
+    'home.languageTitle': '앱 및 명언 언어',
     'home.loadError': '명언을 불러오지 못했습니다.',
     'home.todayQuote': '오늘의 명언',
     'home.like': '좋아요',
@@ -165,6 +177,20 @@ class I18n {
   };
 
   static const Map<String, String> _en = {
+    'common.retry': 'Try again',
+    'common.empty': 'No results found.',
+    'common.comingSoon': '{title} is coming soon.',
+    'login.credentials': 'Check your email or password.',
+    'login.confirmEmail': 'Confirm your email before signing in.',
+    'login.rateLimit': 'Too many requests. Please try again later.',
+    'qr.title': 'CAN on your phone',
+    'qr.scan': 'Scan the QR code with your camera',
+    'qr.open': 'QR code to open CAN on your phone',
+    'qr.install': 'Add to Home Screen\nfrom your mobile browser',
+    'qr.alarmNotice':
+        'Web alarms require the app to stay open.\nRinging is not guaranteed when closed or locked.',
+    'login.validation':
+        'Enter an email and a password of at least 6 characters.',
     'tab.home': 'Home',
     'tab.search': 'Search',
     'tab.community': 'Community',
@@ -173,7 +199,7 @@ class I18n {
     'home.languageTooltip': 'Language',
     'home.darkModeTooltip': 'Dark/Light mode',
     'home.themeTitle': 'Theme Color',
-    'home.languageTitle': 'Quote Language',
+    'home.languageTitle': 'App & Quote Language',
     'home.loadError': 'Failed to load quote.',
     'home.todayQuote': 'Quote of the Day',
     'home.like': 'Like',
@@ -202,7 +228,8 @@ class I18n {
     'profile.saveFailed': 'Failed to save profile.',
     'profile.nameRule': 'Name must be 1-20 characters.',
     'profile.imageTooLarge': 'Please upload an image under 150KB.',
-    'profile.invalidImageType': 'Only JPEG, PNG, GIF, or WebP images are allowed.',
+    'profile.invalidImageType':
+        'Only JPEG, PNG, GIF, or WebP images are allowed.',
     'profile.setupPrompt': 'Set up your profile for community posts.',
     'profile.setupNow': 'Set Up',
     'search.title': 'Search',
@@ -245,7 +272,8 @@ class I18n {
     'login.haveAccount': 'Already have an account? Sign in',
     'login.google': 'Continue with Google',
     'login.popupCanceled': 'Sign-in was canceled. Please try again.',
-    'login.unauthorizedDomain': 'This domain is not in the allowed redirect URLs.',
+    'login.unauthorizedDomain':
+        'This domain is not in the allowed redirect URLs.',
     'login.continueGuest': 'Continue as guest',
     'login.genericError': 'An error occurred. Please try again later.',
     'login.timeout': 'Sign-in is taking too long. Please try again.',
@@ -265,7 +293,8 @@ class I18n {
     'wallpaper.closeEditor': 'Close Editor',
     'wallpaper.saving': 'Saving...',
     'wallpaper.save': 'Save to Gallery',
-    'wallpaper.webSaveUnsupported': 'Saving is not supported on web. Use the mobile app.',
+    'wallpaper.webSaveUnsupported':
+        'Saving is not supported on web. Use the mobile app.',
     'wallpaper.saved': 'Saved to gallery!',
     'wallpaper.saveFailed': 'Failed to save:',
     'postCreate.empty': 'Please enter content.',

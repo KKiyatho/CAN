@@ -1,6 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -9,59 +11,103 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'alarm_model.dart';
+import 'alarm_i18n.dart';
+import 'alarm_schedule.dart';
 
 const _kAlarmsKey = 'alarms_v1';
 
-// ---------------------------------------------------------------------------
-// AlarmRepository — 알람 로컬 저장 + 로컬 알림 스케줄링
-// ---------------------------------------------------------------------------
 class AlarmRepository {
-  AlarmRepository() {
-    if (!kIsWeb) {
-      _initTimezone();
-      _initNotifications();
-    }
-  }
-
   final _plugin = FlutterLocalNotificationsPlugin();
-  bool _initialized = false;
+  final _notificationOpens = StreamController<String>.broadcast();
+  Stream<String> get notificationOpens => _notificationOpens.stream;
+  String? launchAlarmId;
+  Future<void>? _initialization;
+  Future<void> _writes = Future.value();
 
-  /// 타임존 초기화 — flutter_timezone으로 디바이스 로컬 시간대 명시 설정
-  Future<void> _initTimezone() async {
-    tz.initializeTimeZones();
+  bool get _native =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  Future<void> initialize() async {
     try {
-      final localTz = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(localTz));
+      await (_initialization ??= _initialize());
     } catch (_) {
-      // 타임존 조회 실패 시 UTC 기본값 유지 (안전한 폴백)
+      _initialization = null;
+      rethrow;
     }
   }
 
-  Future<void> _initNotifications() async {
-    if (_initialized) return;
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const ios = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    );
+  Future<void> _initialize() async {
+    if (!_native) return;
+    tz.initializeTimeZones();
+    final local = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(local));
     await _plugin.initialize(
-      const InitializationSettings(android: android, iOS: ios),
+      const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        ),
+      ),
+      onDidReceiveNotificationResponse: (response) => _opened(response.payload),
     );
-    _initialized = true;
+    final launch = await _plugin.getNotificationAppLaunchDetails();
+    if (launch?.didNotificationLaunchApp ?? false) {
+      _opened(launch?.notificationResponse?.payload);
+    }
   }
 
-  // ── CRUD ──────────────────────────────────────────────────────────────────
-  Future<List<AlarmModel>> loadAll() async {
+  void _opened(String? payload) {
+    if (payload == null) return;
+    try {
+      final id = (jsonDecode(payload) as Map<String, dynamic>)['alarmId'];
+      if (id is String) {
+        launchAlarmId = id;
+        if (!_notificationOpens.isClosed) _notificationOpens.add(id);
+      }
+    } on FormatException catch (_) {
+      // 이전 버전의 알림은 일반 due 검사로 처리한다.
+    }
+  }
+
+  Future<T> _serialize<T>(Future<T> Function() action) {
+    final result = _writes.then((_) => action());
+    _writes = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return result;
+  }
+
+  Future<List<AlarmModel>> loadAll() => _serialize(_loadAll);
+
+  Future<List<AlarmModel>> _loadAll() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kAlarmsKey);
     if (raw == null) return [];
-    return AlarmModel.decodeList(raw);
+    final alarms = AlarmModel.decodeList(raw);
+    var migrated = false;
+    final now = DateTime.now();
+    final result = alarms.map((alarm) {
+      if (alarm.nextOccurrenceMs != null) return alarm;
+      migrated = true;
+      return alarm.copyWith(
+        nextOccurrenceMs: nextAlarmOccurrence(
+          alarm,
+          now,
+        ).millisecondsSinceEpoch,
+      );
+    }).toList();
+    // 구버전은 생성일이 없으므로 이관 시점 이후 첫 회차로 확정한다.
+    if (migrated) await _saveAll(result);
+    return result;
   }
 
   Future<void> _saveAll(List<AlarmModel> alarms) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kAlarmsKey, AlarmModel.encodeList(alarms));
+    if (!await prefs.setString(_kAlarmsKey, AlarmModel.encodeList(alarms))) {
+      throw StateError('alarm_save_failed');
+    }
   }
 
   Future<AlarmModel> create({
@@ -69,139 +115,174 @@ class AlarmRepository {
     required int minute,
     List<bool>? repeatDays,
     String? unlockPhrase,
-  }) async {
-    final alarms = await loadAll();
-    final alarm = AlarmModel.create(
-      id: _generateId(),
-      hour: hour,
-      minute: minute,
-      repeatDays: repeatDays,
-      unlockPhrase: unlockPhrase,
+  }) => _serialize(() async {
+    final alarms = await _loadAll();
+    final alarm = _prepared(
+      AlarmModel.create(
+        id: _generateId(),
+        hour: hour,
+        minute: minute,
+        repeatDays: repeatDays,
+        unlockPhrase: unlockPhrase,
+      ),
     );
-    alarms.add(alarm);
-    await _saveAll(alarms);
     await _scheduleNotification(alarm);
+    try {
+      await _saveAll([...alarms, alarm]);
+    } catch (_) {
+      await _cancelNotification(alarm.id);
+      rethrow;
+    }
     return alarm;
+  });
+
+  AlarmModel _prepared(AlarmModel alarm) {
+    if (alarm.hour < 0 ||
+        alarm.hour > 23 ||
+        alarm.minute < 0 ||
+        alarm.minute > 59 ||
+        alarm.repeatDays.length != 7 ||
+        alarm.unlockPhrase.trim().isEmpty) {
+      throw ArgumentError('invalid_alarm');
+    }
+    return alarm.copyWith(
+      nextOccurrenceMs: nextAlarmOccurrence(
+        alarm,
+        DateTime.now(),
+      ).millisecondsSinceEpoch,
+    );
   }
 
-  Future<void> update(AlarmModel alarm) async {
-    final alarms = await loadAll();
-    final idx = alarms.indexWhere((a) => a.id == alarm.id);
-    if (idx == -1) return;
-    alarms[idx] = alarm;
-    await _saveAll(alarms);
+  Future<void> update(AlarmModel alarm) => _serialize(() async {
+    final alarms = await _loadAll();
+    final index = alarms.indexWhere((item) => item.id == alarm.id);
+    if (index == -1) throw StateError('alarm_not_found');
+    final previous = alarms[index];
+    final updated = _prepared(alarm);
     await _cancelNotification(alarm.id);
-    if (alarm.isActive) await _scheduleNotification(alarm);
-  }
+    try {
+      if (updated.isActive) await _scheduleNotification(updated);
+      alarms[index] = updated;
+      await _saveAll(alarms);
+    } catch (_) {
+      await _cancelNotification(alarm.id);
+      if (previous.isActive) await _scheduleNotification(previous);
+      rethrow;
+    }
+  });
 
-  Future<void> delete(String id) async {
-    final alarms = await loadAll();
-    alarms.removeWhere((a) => a.id == id);
-    await _saveAll(alarms);
+  Future<void> delete(String id) => _serialize(() async {
+    final alarms = await _loadAll();
     await _cancelNotification(id);
+    try {
+      await _saveAll(alarms.where((alarm) => alarm.id != id).toList());
+    } catch (_) {
+      for (final alarm in alarms.where(
+        (item) => item.id == id && item.isActive,
+      )) {
+        await _scheduleNotification(alarm);
+      }
+      rethrow;
+    }
+  });
+
+  /// 업그레이드한 알람에도 payload를 붙이고 이전 알림 슬롯을 정리한다.
+  Future<void> synchronizeNotifications() => _serialize(() async {
+    if (!_native) return;
+    for (final alarm in await _loadAll()) {
+      await _cancelNotification(alarm.id);
+      if (alarm.isActive) await _scheduleNotification(alarm);
+    }
+  });
+
+  // String.hashCode 대신 프로세스 간 안정적인 FNV-1a 사용.
+  int _notifId(String id, int day) {
+    var hash = 0x811c9dc5;
+    for (final unit in id.codeUnits) {
+      hash = ((hash ^ unit) * 0x01000193) & 0x0fffffff;
+    }
+    return hash * 7 + day;
   }
-
-  // ── 알림 스케줄링 ──────────────────────────────────────────────────────────
-  //
-  // 알림 ID 할당 방식 (충돌 방지):
-  //   base = id.hashCode.abs() % 14285        → 0..14284
-  //   notifId(dayIdx) = base * 7 + dayIdx     → 0..99994
-  // 서로 다른 alarm.id 는 base 값이 달라 dayIdx slot 이 겹치지 않는다.
-  // 단발 알람은 dayIdx=0 슬롯만 사용.
-  // ─────────────────────────────────────────────────────────────────────────
-
-  int _notifId(String id, int dayIdx) =>
-      (id.hashCode.abs() % 14285) * 7 + dayIdx;
 
   Future<void> _scheduleNotification(AlarmModel alarm) async {
-    if (kIsWeb) return; // 웹은 로컬 알림 미지원
-    await _initNotifications();
-
-    const androidDetails = AndroidNotificationDetails(
-      'can_alarm',
-      'CAN 알람',
-      channelDescription: '동기부여 알람',
-      importance: Importance.max,
-      priority: Priority.max,
+    if (!_native) return;
+    await initialize();
+    final prefs = await SharedPreferences.getInstance();
+    final lang = prefs.getString('theme_language_code') ?? 'ko';
+    final details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'can_alarm',
+        AlarmI18n.t(lang, 'alarm.notificationChannel'),
+        channelDescription: AlarmI18n.t(lang, 'alarm.notificationDescription'),
+        importance: Importance.max,
+        priority: Priority.max,
+      ),
+      iOS: const DarwinNotificationDetails(),
     );
-    const iosDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
-
-    final hasRepeat = alarm.repeatDays.any((d) => d);
-
-    if (!hasRepeat) {
-      // ── 단발: 오늘 또는 내일 한 번만 ────────────────────────────────────
-      final scheduled = _nextOccurrence(alarm.hour, alarm.minute);
+    final repeating = alarm.repeatDays.any((day) => day);
+    // 이미 지난 단발은 앱의 영속 대기열이 처리한다. 다음 날로 재예약하지 않는다.
+    if (!repeating &&
+        alarm.nextOccurrenceMs! <= DateTime.now().millisecondsSinceEpoch) {
+      return;
+    }
+    for (var day = 0; day < (repeating ? 7 : 1); day++) {
+      if (repeating && !alarm.repeatDays[day]) continue;
+      var scheduled = tz.TZDateTime.from(
+        DateTime.fromMillisecondsSinceEpoch(alarm.nextOccurrenceMs!),
+        tz.local,
+      );
+      final now = tz.TZDateTime.now(tz.local);
+      while ((repeating && scheduled.weekday != day + 1) ||
+          !scheduled.isAfter(now)) {
+        scheduled = tz.TZDateTime(
+          tz.local,
+          scheduled.year,
+          scheduled.month,
+          scheduled.day + 1,
+          alarm.hour,
+          alarm.minute,
+        );
+      }
       await _plugin.zonedSchedule(
-        _notifId(alarm.id, 0),
-        '🌟 CAN 알람',
+        _notifId(alarm.id, day),
+        AlarmI18n.t(lang, 'alarm.notificationTitle'),
         alarm.unlockPhrase,
         scheduled,
         details,
+        payload: jsonEncode({'alarmId': alarm.id}),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: repeating
+            ? DateTimeComponents.dayOfWeekAndTime
+            : null,
       );
-    } else {
-      // ── 반복: 활성 요일마다 독립 알림 스케줄 ───────────────────────────
-      // AlarmModel.repeatDays 인덱스: 0=월, 1=화, ..., 6=일
-      // DateTime.weekday:            1=월, 2=화, ..., 7=일
-      for (int dayIdx = 0; dayIdx < 7; dayIdx++) {
-        if (!alarm.repeatDays[dayIdx]) continue;
-        final scheduled =
-            _nextOccurrenceForWeekday(alarm.hour, alarm.minute, dayIdx);
-        await _plugin.zonedSchedule(
-          _notifId(alarm.id, dayIdx),
-          '🌟 CAN 알람',
-          alarm.unlockPhrase,
-          scheduled,
-          details,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
-        );
-      }
     }
-  }
-
-  /// 오늘 또는 내일의 [hour:minute] TZDateTime 반환
-  tz.TZDateTime _nextOccurrence(int hour, int minute) {
-    final now = tz.TZDateTime.now(tz.local);
-    var t = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    if (t.isBefore(now)) t = t.add(const Duration(days: 1));
-    return t;
-  }
-
-  /// 특정 요일(dayIdx: 0=월 ~ 6=일)의 다음 [hour:minute] TZDateTime 반환
-  tz.TZDateTime _nextOccurrenceForWeekday(int hour, int minute, int dayIdx) {
-    final targetWeekday = dayIdx + 1; // DateTime.weekday: 1=월..7=일
-    final now = tz.TZDateTime.now(tz.local);
-    var candidate =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    // 해당 요일이면서 미래인 날까지 하루씩 전진
-    while (candidate.weekday != targetWeekday || candidate.isBefore(now)) {
-      candidate = candidate.add(const Duration(days: 1));
-    }
-    return candidate;
   }
 
   Future<void> _cancelNotification(String id) async {
-    if (kIsWeb) return; // 웹은 로컬 알림 미지원
-    await _initNotifications();
-    // 단발(dayIdx=0) + 반복(dayIdx=0..6) 슬롯 전부 취소
-    for (int i = 0; i < 7; i++) {
-      await _plugin.cancel(_notifId(id, i));
+    if (!_native) return;
+    await initialize();
+    for (var day = 0; day < 7; day++) {
+      await _plugin.cancel(_notifId(id, day));
+      // 이전 버전에서 예약한 슬롯도 업그레이드 중 중복되지 않도록 취소.
+      await _plugin.cancel((id.hashCode.abs() % 14285) * 7 + day);
     }
   }
 
+  void dispose() => unawaited(_notificationOpens.close());
+
   static String _generateId() {
-    final rand = Random.secure();
-    final bytes = List<int>.generate(8, (_) => rand.nextInt(256));
-    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    final random = Random.secure();
+    return List.generate(
+      8,
+      (_) => random.nextInt(256),
+    ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
   }
 }
 
-final alarmRepositoryProvider = Provider<AlarmRepository>(
-  (_) => AlarmRepository(),
-);
+final alarmRepositoryProvider = Provider<AlarmRepository>((ref) {
+  final repository = AlarmRepository();
+  ref.onDispose(repository.dispose);
+  return repository;
+});

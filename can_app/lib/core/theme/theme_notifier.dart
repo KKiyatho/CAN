@@ -56,7 +56,8 @@ class ThemeState {
 class ThemeNotifier extends Notifier<ThemeState> {
   @override
   ThemeState build() {
-    // 초기값. 비동기 로드는 loadSaved()로 호출
+    // 위젯 rebuild마다 읽지 않고 notifier 초기화 시 한 번만 복원한다.
+    Future.microtask(loadSaved);
     return const ThemeState(colorIndex: 0, isDark: false);
   }
 

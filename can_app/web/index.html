@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -19,33 +19,63 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="오늘을 바꾸는 한 문장, CAN">
+  <meta name="theme-color" content="#5C8DFF">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="can_app">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="CAN">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="icons/Icon-192.png"/>
 
-  <title>can_app</title>
+  <title>CAN</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; background: #F2F4F8; }
+    #loading { position: fixed; inset: 0; display: grid; place-content: center;
+      text-align: center; font-family: system-ui, sans-serif; color: #202938; }
+    #loading strong { font-size: 32px; letter-spacing: 0.12em; }
+    #loading p { color: #5C6678; font-size: 14px; }
+  </style>
 </head>
 <body>
+  <div id="loading" role="status" aria-live="polite">
+    <strong>CAN</strong>
+    <p>오늘을 바꾸는 한 문장을 준비하고 있어요</p>
+  </div>
   <script>
-    // 로컬 개발 환경에서 과거 서비스워커 캐시가 AssetManifest 404를 유발하는 경우 방지
-    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for (const registration of registrations) {
-            registration.unregister();
-          }
-        });
+    try {
+      const saved = localStorage.getItem('flutter.theme_language_code');
+      const language = saved === '"en"' || saved === 'en' ? 'en' : 'ko';
+      document.documentElement.lang = language;
+      if (language === 'en') {
+        document.querySelector('#loading p').textContent = 'Preparing a quote to brighten your day';
+        document.querySelector('meta[name="description"]').content = 'A quote to brighten your day, CAN';
       }
-    }
+    } catch (_) { /* Storage may be disabled in private browsing. */ }
+    window.addEventListener('flutter-first-frame', function () {
+      document.getElementById('loading')?.remove();
+    }, { once: true });
+    // 구버전 Flutter 캐시만 제거한다. 로그인·알람 localStorage는 유지한다.
+    window.canCacheReady = (async function () {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(function (registration) {
+          return registration.unregister();
+        }));
+      }
+      if ('caches' in window) {
+        const names = await caches.keys();
+        await Promise.all(names.filter(function (name) {
+          return name.startsWith('flutter-');
+        }).map(function (name) { return caches.delete(name); }));
+      }
+    })().catch(function (error) { console.warn('CAN cache cleanup', error); });
   </script>
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="flutter_bootstrap.js?v=20261111-i18n1" async></script>
 </body>
 </html>

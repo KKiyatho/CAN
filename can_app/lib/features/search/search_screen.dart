@@ -7,6 +7,7 @@ import '../../shared/widgets/quote_card.dart';
 import '../../shared/widgets/state_views.dart';
 import 'category_detail_screen.dart';
 import 'search_notifier.dart';
+import 'search_labels.dart';
 
 // ---------------------------------------------------------------------------
 // 카테고리 정의
@@ -26,25 +27,7 @@ class _Category {
 }
 
 String _localizedSearchLabel(String lang, String ko) {
-  if (lang != 'en') return ko;
-  const map = {
-    '철학자': 'Philosophers',
-    '기업가': 'Entrepreneurs',
-    '작가': 'Writers',
-    '과학자': 'Scientists',
-    '예술가': 'Artists',
-    '운동선수': 'Athletes',
-    '정치가': 'Politicians',
-    '종교인': 'Religious',
-    '사랑': 'Love',
-    '행복': 'Happiness',
-    '자기계발': 'Self Growth',
-    '삶': 'Life',
-    '불안': 'Anxiety',
-    '지침': 'Exhaustion',
-    '면접': 'Interview',
-  };
-  return map[ko] ?? ko;
+  return localizedSearchLabel(lang, ko);
 }
 
 const _kCategories = [
@@ -182,11 +165,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void _selectCategory(_Category cat) {
     _focusNode.unfocus();
     setState(() => _isSearching = false);
-    final lang = ref.read(themeNotifierProvider).languageCode;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => CategoryDetailScreen(
-          label: _localizedSearchLabel(lang, cat.label),
+          label: cat.label,
           tag: cat.tag,
           gradient: cat.gradient,
           imageUrl: cat.imageUrl,

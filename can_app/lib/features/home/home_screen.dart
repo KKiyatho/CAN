@@ -13,7 +13,6 @@ import '../profile/user_profile.dart';
 import '../../shared/models/quote.dart';
 import '../../shared/widgets/quote_card.dart';
 import '../../shared/widgets/state_views.dart';
-import '../search/search_notifier.dart';
 import 'home_notifier.dart';
 import 'quote_repository.dart';
 
@@ -43,9 +42,7 @@ class HomeScreen extends ConsumerWidget {
           // 다크모드 토글
           IconButton(
             tooltip: I18n.t(lang, 'home.darkModeTooltip'),
-            icon: Icon(
-              themeState.isDark ? Icons.light_mode : Icons.dark_mode,
-            ),
+            icon: Icon(themeState.isDark ? Icons.light_mode : Icons.dark_mode),
             onPressed: () =>
                 ref.read(themeNotifierProvider.notifier).toggleDarkMode(),
           ),
@@ -63,8 +60,11 @@ class HomeScreen extends ConsumerWidget {
               child: CircleAvatar(
                 radius: 14,
                 backgroundColor: themeState.primaryColor,
-                child: Icon(Icons.palette,
-                    size: 16, color: colorScheme.onPrimary),
+                child: Icon(
+                  Icons.palette,
+                  size: 16,
+                  color: colorScheme.onPrimary,
+                ),
               ),
             ),
           ),
@@ -73,14 +73,12 @@ class HomeScreen extends ConsumerWidget {
       body: homeState.quote.when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
-          message: '${I18n.t(lang, 'home.loadError')}\n$e',
-          onRetry: () =>
-              ref.read(homeNotifierProvider.notifier).loadQuote(),
+          message: I18n.t(lang, 'home.loadError'),
+          onRetry: () => ref.read(homeNotifierProvider.notifier).loadQuote(),
         ),
         data: (quote) => _QuoteBody(
           quote: homeState,
-          onRefresh: () =>
-              ref.read(homeNotifierProvider.notifier).loadQuote(),
+          onRefresh: () => ref.read(homeNotifierProvider.notifier).loadQuote(),
           onBookmark: () =>
               ref.read(homeNotifierProvider.notifier).toggleBookmark(quote.id),
           onLike: () =>
@@ -106,7 +104,10 @@ class HomeScreen extends ConsumerWidget {
   }
 
   void _showColorPicker(
-      BuildContext context, WidgetRef ref, ThemeState themeState) {
+    BuildContext context,
+    WidgetRef ref,
+    ThemeState themeState,
+  ) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -118,10 +119,12 @@ class HomeScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(I18n.t(themeState.languageCode, 'home.themeTitle'),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    )),
+            Text(
+              I18n.t(themeState.languageCode, 'home.themeTitle'),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -129,9 +132,7 @@ class HomeScreen extends ConsumerWidget {
                 final isSelected = themeState.colorIndex == i;
                 return GestureDetector(
                   onTap: () {
-                    ref
-                        .read(themeNotifierProvider.notifier)
-                        .setColor(i);
+                    ref.read(themeNotifierProvider.notifier).setColor(i);
                     Navigator.pop(context);
                   },
                   child: AnimatedContainer(
@@ -144,13 +145,15 @@ class HomeScreen extends ConsumerWidget {
                       border: isSelected
                           ? Border.all(
                               color: Theme.of(context).colorScheme.onSurface,
-                              width: 3)
+                              width: 3,
+                            )
                           : null,
                       boxShadow: [
                         BoxShadow(
-                            color: kThemeColors[i].withValues(alpha: 0.4),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4)),
+                          color: kThemeColors[i].withValues(alpha: 0.4),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
                       ],
                     ),
                     child: isSelected
@@ -168,7 +171,10 @@ class HomeScreen extends ConsumerWidget {
   }
 
   void _showLanguagePicker(
-      BuildContext context, WidgetRef ref, ThemeState themeState) {
+    BuildContext context,
+    WidgetRef ref,
+    ThemeState themeState,
+  ) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -180,26 +186,28 @@ class HomeScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(I18n.t(themeState.languageCode, 'home.languageTitle'),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    )),
+            Text(
+              I18n.t(themeState.languageCode, 'home.languageTitle'),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 16),
             ...kLanguageOptions.map((opt) {
               final isSelected = themeState.languageCode == opt.code;
               return ListTile(
                 title: Text(opt.label),
                 trailing: isSelected
-                    ? Icon(Icons.check,
-                        color: Theme.of(context).colorScheme.primary)
+                    ? Icon(
+                        Icons.check,
+                        color: Theme.of(context).colorScheme.primary,
+                      )
                     : null,
                 onTap: () async {
                   await ref
                       .read(themeNotifierProvider.notifier)
                       .setLanguage(opt.code);
-                  // 언어 변경 후 명언 새로 로드 + 검색 결과 초기화
-                  ref.read(homeNotifierProvider.notifier).loadQuote();
-                  ref.read(searchNotifierProvider.notifier).clearSearch();
+                  // 각 기능의 언어 리스너가 기존 입력을 유지하며 콘텐츠를 갱신한다.
                   if (context.mounted) Navigator.pop(context);
                 },
               );
@@ -236,9 +244,7 @@ class _ProfileBottomSheetState extends ConsumerState<_ProfileBottomSheet> {
     final bookmarked = await repo.fetchQuotesByIds(
       widget.homeState.bookmarkedIds,
     );
-    final liked = await repo.fetchQuotesByIds(
-      widget.homeState.likedIds,
-    );
+    final liked = await repo.fetchQuotesByIds(widget.homeState.likedIds);
     return _ProfileData(bookmarked: bookmarked, liked: liked);
   }
 
@@ -320,7 +326,7 @@ class _ProfileBottomSheetState extends ConsumerState<_ProfileBottomSheet> {
                             }
                           },
                     icon: const Icon(Icons.edit_outlined),
-                    label: Text(I18n.t(lang, 'profile.edit')), 
+                    label: Text(I18n.t(lang, 'profile.edit')),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -357,7 +363,8 @@ class _ProfileBottomSheetState extends ConsumerState<_ProfileBottomSheet> {
                     );
                   }
 
-                  final data = snapshot.data ??
+                  final data =
+                      snapshot.data ??
                       const _ProfileData(bookmarked: [], liked: []);
                   return DefaultTabController(
                     length: 2,
@@ -425,10 +432,7 @@ class _ProfileBottomSheetState extends ConsumerState<_ProfileBottomSheet> {
       ),
       builder: (_) => FractionallySizedBox(
         heightFactor: 0.9,
-        child: _EditProfileSheet(
-          user: authUser,
-          initialProfile: profile,
-        ),
+        child: _EditProfileSheet(user: authUser, initialProfile: profile),
       ),
     );
   }
@@ -504,20 +508,12 @@ class _QuoteListView extends StatelessWidget {
   final List<Quote> quotes;
   final String emptyText;
 
-  const _QuoteListView({
-    required this.quotes,
-    required this.emptyText,
-  });
+  const _QuoteListView({required this.quotes, required this.emptyText});
 
   @override
   Widget build(BuildContext context) {
     if (quotes.isEmpty) {
-      return Center(
-        child: Text(
-          emptyText,
-          textAlign: TextAlign.center,
-        ),
-      );
+      return Center(child: Text(emptyText, textAlign: TextAlign.center));
     }
 
     return ListView.separated(
@@ -526,12 +522,11 @@ class _QuoteListView extends StatelessWidget {
       itemBuilder: (context, index) {
         final q = quotes[index];
         return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          title: Text(
-            q.content,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 4,
+            vertical: 6,
           ),
+          title: Text(q.content, maxLines: 2, overflow: TextOverflow.ellipsis),
           subtitle: Text(
             q.author,
             maxLines: 1,
@@ -561,10 +556,7 @@ class _ProfileAvatar extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final bytes = _decodeDataUrl(imageDataUrl);
     if (bytes != null) {
-      return CircleAvatar(
-        radius: radius,
-        backgroundImage: MemoryImage(bytes),
-      );
+      return CircleAvatar(radius: radius, backgroundImage: MemoryImage(bytes));
     }
     return CircleAvatar(
       radius: radius,
@@ -592,10 +584,7 @@ class _EditProfileSheet extends ConsumerStatefulWidget {
   final AppUser user;
   final UserProfile? initialProfile;
 
-  const _EditProfileSheet({
-    required this.user,
-    required this.initialProfile,
-  });
+  const _EditProfileSheet({required this.user, required this.initialProfile});
 
   @override
   ConsumerState<_EditProfileSheet> createState() => _EditProfileSheetState();
@@ -688,21 +677,29 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
       return 'image/jpeg';
     }
     // PNG: 89 50 4E 47
-    if (bytes[0] == 0x89 && bytes[1] == 0x50 &&
-        bytes[2] == 0x4E && bytes[3] == 0x47) {
+    if (bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47) {
       return 'image/png';
     }
     // GIF: 47 49 46 38
-    if (bytes[0] == 0x47 && bytes[1] == 0x49 &&
-        bytes[2] == 0x46 && bytes[3] == 0x38) {
+    if (bytes[0] == 0x47 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x38) {
       return 'image/gif';
     }
     // WebP: 52 49 46 46 ... 57 45 42 50 (RIFF....WEBP)
     if (bytes.length >= 12 &&
-        bytes[0] == 0x52 && bytes[1] == 0x49 &&
-        bytes[2] == 0x46 && bytes[3] == 0x46 &&
-        bytes[8] == 0x57 && bytes[9] == 0x45 &&
-        bytes[10] == 0x42 && bytes[11] == 0x50) {
+        bytes[0] == 0x52 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x46 &&
+        bytes[8] == 0x57 &&
+        bytes[9] == 0x45 &&
+        bytes[10] == 0x42 &&
+        bytes[11] == 0x50) {
       return 'image/webp';
     }
     return null;
@@ -712,21 +709,23 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
     final lang = ref.read(themeNotifierProvider).languageCode;
     final trimmedName = _nameController.text.trim();
     if (trimmedName.isEmpty || trimmedName.length > 20) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(I18n.t(lang, 'profile.nameRule'))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(I18n.t(lang, 'profile.nameRule'))));
       return;
     }
 
     setState(() => _saving = true);
     try {
       final repo = ref.read(profileRepositoryProvider);
-      await repo.saveProfile(UserProfile(
-        uid: widget.user.id,
-        displayName: trimmedName,
-        avatarEmoji: _selectedEmoji,
-        avatarImageDataUrl: _imageDataUrl,
-      ));
+      await repo.saveProfile(
+        UserProfile(
+          uid: widget.user.id,
+          displayName: trimmedName,
+          avatarEmoji: _selectedEmoji,
+          avatarImageDataUrl: _imageDataUrl,
+        ),
+      );
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (_) {
@@ -752,9 +751,9 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
           children: [
             Text(
               I18n.t(lang, 'profile.editTitle'),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 14),
             Center(
@@ -847,10 +846,7 @@ class _ProfileData {
   final List<Quote> bookmarked;
   final List<Quote> liked;
 
-  const _ProfileData({
-    required this.bookmarked,
-    required this.liked,
-  });
+  const _ProfileData({required this.bookmarked, required this.liked});
 }
 
 // ---------------------------------------------------------------------------
@@ -881,8 +877,8 @@ class _QuoteBody extends ConsumerWidget {
     final homeState = quote;
     final authUser = ref.watch(authStateProvider).valueOrNull;
     final profile = ref.watch(currentUserProfileProvider).valueOrNull;
-    final profileIncomplete = authUser != null &&
-        (profile == null || !profile.isCompleted);
+    final profileIncomplete =
+        authUser != null && (profile == null || !profile.isCompleted);
 
     return SafeArea(
       child: Padding(
@@ -914,8 +910,9 @@ class _QuoteBody extends ConsumerWidget {
                           context: context,
                           isScrollControlled: true,
                           shape: const RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.vertical(top: Radius.circular(24)),
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(24),
+                            ),
                           ),
                           builder: (_) => FractionallySizedBox(
                             heightFactor: 0.85,
@@ -931,7 +928,9 @@ class _QuoteBody extends ConsumerWidget {
             Expanded(
               child: Center(
                 child: QuoteCard(
-                    quote: q, label: I18n.t(lang, 'home.todayQuote')),
+                  quote: q,
+                  label: I18n.t(lang, 'home.todayQuote'),
+                ),
               ),
             ),
 
@@ -943,18 +942,14 @@ class _QuoteBody extends ConsumerWidget {
                 children: [
                   // 좋아요
                   _ActionButton(
-                    icon: isLiked
-                        ? Icons.favorite
-                        : Icons.favorite_border,
+                    icon: isLiked ? Icons.favorite : Icons.favorite_border,
                     label: I18n.t(lang, 'home.like'),
                     color: isLiked ? Colors.redAccent : null,
                     onTap: onLike,
                   ),
                   // 북마크
                   _ActionButton(
-                    icon: isBookmarked
-                        ? Icons.bookmark
-                        : Icons.bookmark_border,
+                    icon: isBookmarked ? Icons.bookmark : Icons.bookmark_border,
                     label: I18n.t(lang, 'home.save'),
                     color: isBookmarked ? colorScheme.primary : null,
                     onTap: onBookmark,
@@ -1005,9 +1000,11 @@ class _ActionButton extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                size: 28,
-                color: color ?? theme.colorScheme.onSurfaceVariant),
+            Icon(
+              icon,
+              size: 28,
+              color: color ?? theme.colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 4),
             Text(
               label,

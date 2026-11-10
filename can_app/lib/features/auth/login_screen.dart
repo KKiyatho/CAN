@@ -34,10 +34,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await signInAnonymouslyIfNeeded();
     } on AuthException catch (e) {
-      _showError(e.message);
+      _showAuthError(e);
     } catch (_) {
       if (!mounted) return;
-      _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.genericError'));
+      _showError(
+        I18n.t(
+          ref.read(themeNotifierProvider).languageCode,
+          'login.genericError',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -47,7 +52,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     if (email.isEmpty || password.length < 6) {
-      _showError('이메일과 비밀번호(6자 이상)를 확인해 주세요.');
+      _showError(
+        I18n.t(
+          ref.read(themeNotifierProvider).languageCode,
+          'login.validation',
+        ),
+      );
       return;
     }
 
@@ -60,11 +70,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await client.auth.signInWithPassword(email: email, password: password);
       }
     } on AuthException catch (e) {
-      _showError(e.message);
+      _showAuthError(e);
     } on TimeoutException {
-      _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.timeout'));
+      _showError(
+        I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.timeout'),
+      );
     } catch (_) {
-      _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.genericError'));
+      _showError(
+        I18n.t(
+          ref.read(themeNotifierProvider).languageCode,
+          'login.genericError',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -82,21 +99,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         redirectTo: redirect,
       );
     } on AuthException catch (e) {
-      _showError(e.message);
+      _showAuthError(e);
     } on TimeoutException {
-      _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.timeout'));
+      _showError(
+        I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.timeout'),
+      );
     } catch (_) {
-      _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, 'login.genericError'));
+      _showError(
+        I18n.t(
+          ref.read(themeNotifierProvider).languageCode,
+          'login.genericError',
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
+  void _showAuthError(AuthException error) {
+    if (!mounted) return;
+    final key = switch (error.code) {
+      'invalid_credentials' => 'login.credentials',
+      'email_not_confirmed' => 'login.confirmEmail',
+      'over_request_rate_limit' ||
+      'over_email_send_rate_limit' => 'login.rateLimit',
+      _ => 'login.genericError',
+    };
+    _showError(I18n.t(ref.read(themeNotifierProvider).languageCode, key));
+  }
+
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -113,9 +149,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Text(
                 'CAN',
                 style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2,
-                    ),
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2,
+                ),
               ),
               const SizedBox(height: 8),
               Text(

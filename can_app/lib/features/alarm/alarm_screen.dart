@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/gestures.dart'
-    show GestureBinding, PointerScrollEvent;
+import 'package:flutter/gestures.dart' show GestureBinding, PointerScrollEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -10,7 +9,9 @@ import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
 
 import 'alarm_model.dart';
+import 'alarm_i18n.dart';
 import 'alarm_notifier.dart';
+import 'alarm_runtime.dart';
 import 'alarm_unlock_screen.dart';
 
 String _alarmRepeatLabel(List<bool> repeatDays, String lang) {
@@ -18,16 +19,13 @@ String _alarmRepeatLabel(List<bool> repeatDays, String lang) {
   for (var i = 0; i < repeatDays.length; i++) {
     if (repeatDays[i]) active.add(i);
   }
-  if (active.isEmpty) return lang == 'en' ? 'No repeat' : '반복 없음';
-  if (active.length == 7) return lang == 'en' ? 'Every day' : '매일';
+  if (active.isEmpty) return AlarmI18n.t(lang, 'alarm.repeatNone');
+  if (active.length == 7) return AlarmI18n.t(lang, 'alarm.repeatDaily');
   final weekdaySet = {0, 1, 2, 3, 4};
   if (active.toSet().containsAll(weekdaySet) && active.length == 5) {
-    return lang == 'en' ? 'Weekdays' : '평일';
+    return AlarmI18n.t(lang, 'alarm.repeatWeekdays');
   }
-  final labels = lang == 'en'
-      ? const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-      : const ['월', '화', '수', '목', '금', '토', '일'];
-  return active.map((i) => labels[i]).join(', ');
+  return active.map((i) => AlarmI18n.t(lang, 'alarm.day$i')).join(', ');
 }
 
 // ---------------------------------------------------------------------------
@@ -41,6 +39,55 @@ class AlarmScreen extends ConsumerStatefulWidget {
 }
 
 class _AlarmScreenState extends ConsumerState<AlarmScreen> {
+  bool _activatingSound = false;
+  bool _soundEnabled = false;
+
+  Future<void> _activateSound() async {
+    if (_activatingSound) return;
+    // await 전에 호출해 브라우저의 사용자 클릭 권한을 유지한다.
+    final activation = ref.read(alarmRuntimeControllerProvider).activateSound();
+    setState(() => _activatingSound = true);
+    try {
+      await activation;
+      if (!mounted) return;
+      setState(() => _soundEnabled = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AlarmI18n.t(
+            ref.read(themeNotifierProvider).languageCode,
+            'alarm.soundConfirmed',
+          )),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _soundEnabled = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AlarmI18n.t(
+        ref.read(themeNotifierProvider).languageCode,
+        'alarm.soundFailed',
+      ))));
+    } finally {
+      if (mounted) setState(() => _activatingSound = false);
+    }
+  }
+
+  Future<void> _perform(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(AlarmI18n.t(
+          ref.read(themeNotifierProvider).languageCode,
+          'alarm.operationFailed',
+        ))));
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -94,45 +141,87 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'alarm_fab',
+        tooltip: I18n.t(lang, 'alarm.add'),
         onPressed: _showCreateSheet,
         child: const Icon(Icons.add_alarm_outlined),
       ),
-      body: alarms.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.alarm_off_outlined,
-                      size: 64, color: cs.onSurfaceVariant),
-                  const SizedBox(height: 16),
-                  Text(
-                    I18n.t(lang, 'alarm.empty'),
-                    textAlign: TextAlign.center,
-                    style: textTheme.bodyMedium
-                        ?.copyWith(color: cs.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: alarms.length,
-              itemBuilder: (ctx, i) => _AlarmCard(
-                alarm: alarms[i],
-                lang: lang,
-                onToggle: () =>
-                    ref.read(alarmNotifierProvider.notifier).toggle(alarms[i].id),
-                onEdit: () => _showEditSheet(alarms[i]),
-                onDelete: () =>
-                    ref.read(alarmNotifierProvider.notifier).delete(alarms[i].id),
-                onUnlockPreview: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        AlarmUnlockScreen(phrase: alarms[i].unlockPhrase),
-                  ),
-                ),
+      body: Column(
+        children: [
+          if (kIsWeb)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                AlarmI18n.t(lang, 'alarm.webWarning'),
               ),
             ),
+          TextButton.icon(
+            onPressed: _activatingSound ? null : _activateSound,
+            icon: Icon(
+              _soundEnabled ? Icons.volume_up : Icons.volume_up_outlined,
+            ),
+            label: Text(
+                AlarmI18n.t(lang, _activatingSound
+                  ? 'alarm.soundActivating'
+                  : _soundEnabled
+                  ? 'alarm.soundEnabled'
+                  : 'alarm.soundEnable'),
+            ),
+          ),
+          Expanded(
+            child: alarms.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.alarm_off_outlined,
+                          size: 64,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          I18n.t(lang, 'alarm.empty'),
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: alarms.length,
+                    itemBuilder: (ctx, i) => _AlarmCard(
+                      alarm: alarms[i],
+                      lang: lang,
+                      onToggle: () => _perform(
+                        () => ref
+                            .read(alarmNotifierProvider.notifier)
+                            .toggle(alarms[i].id),
+                      ),
+                      onEdit: () => _showEditSheet(alarms[i]),
+                      onDelete: () => _perform(
+                        () => ref
+                            .read(alarmNotifierProvider.notifier)
+                            .delete(alarms[i].id),
+                      ),
+                      onRingTest: () => _perform(
+                        () => ref
+                            .read(alarmRuntimeControllerProvider)
+                            .testAlarm(alarms[i]),
+                      ),
+                      onUnlockPreview: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              AlarmUnlockScreen(phrase: alarms[i].unlockPhrase),
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -148,6 +237,7 @@ class _AlarmCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onUnlockPreview,
+    required this.onRingTest,
   });
   final AlarmModel alarm;
   final String lang;
@@ -155,6 +245,7 @@ class _AlarmCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onUnlockPreview;
+  final VoidCallback onRingTest;
 
   @override
   Widget build(BuildContext context) {
@@ -197,8 +288,11 @@ class _AlarmCard extends StatelessWidget {
                       onTap: onUnlockPreview,
                       child: Row(
                         children: [
-                          Icon(Icons.keyboard_outlined,
-                              size: 14, color: cs.primary),
+                          Icon(
+                            Icons.keyboard_outlined,
+                            size: 14,
+                            color: cs.primary,
+                          ),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
@@ -212,6 +306,11 @@ class _AlarmCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    TextButton.icon(
+                      onPressed: onRingTest,
+                      icon: const Icon(Icons.alarm_on_outlined, size: 18),
+                      label: Text(AlarmI18n.t(lang, 'alarm.ringTest')),
+                    ),
                   ],
                 ),
               ),
@@ -220,6 +319,7 @@ class _AlarmCard extends StatelessWidget {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.delete_outline),
+                    tooltip: AlarmI18n.t(lang, 'alarm.delete'),
                     onPressed: onDelete,
                     color: cs.onSurfaceVariant,
                     iconSize: 20,
@@ -251,6 +351,7 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
   late int _minute;
   late List<bool> _repeatDays;
   late TextEditingController _phraseController;
+  bool _saving = false;
 
   // 휠 스크롤 컨트롤러
   late FixedExtentScrollController _hourController;
@@ -296,45 +397,73 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
         GestureBinding.instance.pointerSignalResolver.register(event, (e) {
           final dy = (e as PointerScrollEvent).scrollDelta.dy;
           if (dy == 0) return;
-          final next =
-              (controller.selectedItem + (dy > 0 ? 1 : -1)).clamp(0, count - 1);
-          controller.animateToItem(next,
-              duration: duration, curve: Curves.easeOut);
+          final next = (controller.selectedItem + (dy > 0 ? 1 : -1)).clamp(
+            0,
+            count - 1,
+          );
+          controller.animateToItem(
+            next,
+            duration: duration,
+            curve: Curves.easeOut,
+          );
         });
       },
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => controller.animateToItem(index,
-            duration: duration, curve: Curves.easeOut),
+        onTap: () => controller.animateToItem(
+          index,
+          duration: duration,
+          curve: Curves.easeOut,
+        ),
         child: child,
       ),
     );
   }
 
   Future<void> _save() async {
-    // 해제 문구 검증: 빈 값이면 기본값, 30자 초과 방어
-    final lang = ref.read(themeNotifierProvider).languageCode;
-    String phrase = _phraseController.text.trim();
-    if (phrase.isEmpty) phrase = I18n.t(lang, 'alarm.unlockHint');
-    if (phrase.length > 30) phrase = phrase.substring(0, 30);
+    if (_saving) return;
+    // 사용자 클릭 스택 안에서 오디오 활성화를 먼저 시작한다.
+    final activation = ref.read(alarmRuntimeControllerProvider).activateSound();
+    setState(() => _saving = true);
+    try {
+      await activation;
+      // 빈 문구만 기본값으로 대체한다. 길이는 입력창에서 제한한다.
+      final lang = ref.read(themeNotifierProvider).languageCode;
+      String phrase = _phraseController.text;
+      // Preserve authored text (including spaces) across edits and language changes.
+      if (phrase.trim().isEmpty) phrase = I18n.t(lang, 'alarm.unlockHint');
 
-    final notifier = ref.read(alarmNotifierProvider.notifier);
-    if (widget.existing != null) {
-      await notifier.update(widget.existing!.copyWith(
-        hour: _hour,
-        minute: _minute,
-        repeatDays: _repeatDays,
-        unlockPhrase: phrase,
-      ));
-    } else {
-      await notifier.create(
-        hour: _hour,
-        minute: _minute,
-        repeatDays: _repeatDays,
-        unlockPhrase: phrase,
-      );
+      final notifier = ref.read(alarmNotifierProvider.notifier);
+      if (widget.existing != null) {
+        await notifier.update(
+          widget.existing!.copyWith(
+            hour: _hour,
+            minute: _minute,
+            repeatDays: _repeatDays,
+            unlockPhrase: phrase,
+          ),
+        );
+      } else {
+        await notifier.create(
+          hour: _hour,
+          minute: _minute,
+          repeatDays: _repeatDays,
+          unlockPhrase: phrase,
+        );
+      }
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(AlarmI18n.t(
+          ref.read(themeNotifierProvider).languageCode,
+          'alarm.saveFailed',
+        ))));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -356,186 +485,195 @@ class _AlarmEditSheetState extends ConsumerState<_AlarmEditSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          // ── 핸들 ────────────────────────────────────────────────────────
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
+            // ── 핸들 ────────────────────────────────────────────────────────
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          // ── 휠 시간 선택기 ───────────────────────────────────────────────
-          Text(I18n.t(lang, 'alarm.time'), style: textTheme.labelMedium),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 160,
-            child: Row(
-              children: [
-                // 시간 휠 (0~23)
-                Expanded(
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // 선택 영역 하이라이트
-                      Container(
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: cs.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 20),
+            // ── 휠 시간 선택기 ───────────────────────────────────────────────
+            Text(I18n.t(lang, 'alarm.time'), style: textTheme.labelMedium),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 160,
+              child: Row(
+                children: [
+                  // 시간 휠 (0~23)
+                  Expanded(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // 선택 영역 하이라이트
+                        Container(
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: cs.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                      ),
-                      ListWheelScrollView.useDelegate(
-                        controller: _hourController,
-                        itemExtent: 44,
-                        diameterRatio: 1.8,
-                        perspective: 0.003,
-                        physics: const FixedExtentScrollPhysics(),
-                        onSelectedItemChanged: (i) =>
-                            setState(() => _hour = i),
-                        childDelegate: ListWheelChildBuilderDelegate(
-                          builder: (_, i) => _wheelCell(
-                            _hourController,
-                            i,
-                            24,
-                            Center(
-                              child: Text(
-                                i.toString().padLeft(2, '0'),
-                                style: textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: _hour == i
-                                      ? cs.primary
-                                      : cs.onSurface.withValues(alpha: 0.4),
+                        ListWheelScrollView.useDelegate(
+                          controller: _hourController,
+                          itemExtent: 44,
+                          diameterRatio: 1.8,
+                          perspective: 0.003,
+                          physics: const FixedExtentScrollPhysics(),
+                          onSelectedItemChanged: (i) =>
+                              setState(() => _hour = i),
+                          childDelegate: ListWheelChildBuilderDelegate(
+                            builder: (_, i) => _wheelCell(
+                              _hourController,
+                              i,
+                              24,
+                              Center(
+                                child: Text(
+                                  i.toString().padLeft(2, '0'),
+                                  style: textTheme.headlineMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: _hour == i
+                                        ? cs.primary
+                                        : cs.onSurface.withValues(alpha: 0.4),
+                                  ),
                                 ),
                               ),
                             ),
+                            childCount: 24,
                           ),
-                          childCount: 24,
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                // 구분자
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    ':',
-                    style: textTheme.headlineLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: cs.primary,
+                      ],
                     ),
                   ),
-                ),
-                // 분 휠 (0~59)
-                Expanded(
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: cs.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      ListWheelScrollView.useDelegate(
-                        controller: _minuteController,
-                        itemExtent: 44,
-                        diameterRatio: 1.8,
-                        perspective: 0.003,
-                        physics: const FixedExtentScrollPhysics(),
-                        onSelectedItemChanged: (i) =>
-                            setState(() => _minute = i),
-                        childDelegate: ListWheelChildBuilderDelegate(
-                          builder: (_, i) => _wheelCell(
-                            _minuteController,
-                            i,
-                            60,
-                            Center(
-                              child: Text(
-                                i.toString().padLeft(2, '0'),
-                                style: textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: _minute == i
-                                      ? cs.primary
-                                      : cs.onSurface.withValues(alpha: 0.4),
-                                ),
-                              ),
-                            ),
-                          ),
-                          childCount: 60,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // ── 반복 요일 ────────────────────────────────────────────────────
-          Text(I18n.t(lang, 'alarm.repeat'), style: textTheme.labelMedium),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(7, (i) {
-              return GestureDetector(
-                onTap: () => setState(() => _repeatDays[i] = !_repeatDays[i]),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _repeatDays[i] ? cs.primary : cs.surfaceContainerHighest,
-                  ),
-                  child: Center(
+                  // 구분자
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
                     child: Text(
-                      AlarmModel.dayLabels[i],
-                      style: textTheme.labelMedium?.copyWith(
-                        color: _repeatDays[i]
-                            ? cs.onPrimary
-                            : cs.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
+                      ':',
+                      style: textTheme.headlineLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: cs.primary,
                       ),
                     ),
                   ),
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 20),
-          // ── 해제 문구 ────────────────────────────────────────────────────
-          Text(I18n.t(lang, 'alarm.unlockPhrase'), style: textTheme.labelMedium),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _phraseController,
-            maxLength: 30,
-            decoration: InputDecoration(
-              hintText: I18n.t(lang, 'alarm.unlockHint'),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                  // 분 휠 (0~59)
+                  Expanded(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Container(
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: cs.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        ListWheelScrollView.useDelegate(
+                          controller: _minuteController,
+                          itemExtent: 44,
+                          diameterRatio: 1.8,
+                          perspective: 0.003,
+                          physics: const FixedExtentScrollPhysics(),
+                          onSelectedItemChanged: (i) =>
+                              setState(() => _minute = i),
+                          childDelegate: ListWheelChildBuilderDelegate(
+                            builder: (_, i) => _wheelCell(
+                              _minuteController,
+                              i,
+                              60,
+                              Center(
+                                child: Text(
+                                  i.toString().padLeft(2, '0'),
+                                  style: textTheme.headlineMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: _minute == i
+                                        ? cs.primary
+                                        : cs.onSurface.withValues(alpha: 0.4),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            childCount: 60,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          // ── 저장 버튼 ────────────────────────────────────────────────────
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: FilledButton(
-              onPressed: _save,
-              child: Text(widget.existing != null
-                  ? I18n.t(lang, 'alarm.edit')
-                  : I18n.t(lang, 'alarm.add')),
+            const SizedBox(height: 16),
+            // ── 반복 요일 ────────────────────────────────────────────────────
+            Text(I18n.t(lang, 'alarm.repeat'), style: textTheme.labelMedium),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(7, (i) {
+                return GestureDetector(
+                  onTap: () => setState(() => _repeatDays[i] = !_repeatDays[i]),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _repeatDays[i]
+                          ? cs.primary
+                          : cs.surfaceContainerHighest,
+                    ),
+                    child: Center(
+                      child: Text(
+                        AlarmI18n.t(lang, 'alarm.day$i'),
+                        style: textTheme.labelMedium?.copyWith(
+                          color: _repeatDays[i]
+                              ? cs.onPrimary
+                              : cs.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
             ),
-          ),
-          const SizedBox(height: 8),
-        ],
+            const SizedBox(height: 20),
+            // ── 해제 문구 ────────────────────────────────────────────────────
+            Text(
+              I18n.t(lang, 'alarm.unlockPhrase'),
+              style: textTheme.labelMedium,
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _phraseController,
+              maxLength: 30,
+              decoration: InputDecoration(
+                hintText: I18n.t(lang, 'alarm.unlockHint'),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // ── 저장 버튼 ────────────────────────────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: FilledButton(
+                onPressed: _saving ? null : _save,
+                child: Text(
+                    _saving
+                      ? AlarmI18n.t(lang, 'alarm.saving')
+                      : widget.existing != null
+                      ? I18n.t(lang, 'alarm.edit')
+                      : I18n.t(lang, 'alarm.add'),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
         ),
       ),
     );

@@ -6,6 +6,7 @@ import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../shared/models/quote.dart';
 import 'category_detail_notifier.dart';
+import 'search_labels.dart';
 
 // ---------------------------------------------------------------------------
 // CategoryDetailScreen — Apple Music 스타일 카테고리 상세 화면
@@ -54,6 +55,7 @@ class _CategoryDetailScreenState extends ConsumerState<CategoryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final lang = ref.watch(themeNotifierProvider).languageCode;
+    final label = localizedSearchLabel(lang, widget.tag);
     final state = ref.watch(categoryDetailProvider(widget.tag));
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -89,7 +91,7 @@ class _CategoryDetailScreenState extends ConsumerState<CategoryDetailScreen> {
               titlePadding:
                   const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 18),
               title: Text(
-                '${widget.label}${I18n.t(lang, 'category.collectionSuffix')}',
+                '$label${I18n.t(lang, 'category.collectionSuffix')}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,
@@ -182,7 +184,7 @@ class _CategoryDetailScreenState extends ConsumerState<CategoryDetailScreen> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      widget.label,
+                      label,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,

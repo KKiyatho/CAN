@@ -55,29 +55,49 @@ class CategoryDetailState {
 class CategoryDetailNotifier
     extends AutoDisposeFamilyNotifier<CategoryDetailState, String> {
   static const int _pageSize = 50;
+  int _requestId = 0;
+  bool _disposed = false;
 
   @override
   CategoryDetailState build(String tag) {
+    _disposed = false;
+    ref.onDispose(() {
+      _disposed = true;
+      _requestId++;
+    });
+    ref.listen(themeNotifierProvider.select((s) => s.languageCode),
+        (previous, next) {
+      if (previous != next) retry();
+    });
     final link = ref.keepAlive();
+    final requestId = ++_requestId;
+    final language = ref.read(themeNotifierProvider).languageCode;
     Future.microtask(() async {
-      await _loadInitial(tag);
-      link.close();
+      try {
+        await _loadInitial(tag, language, requestId);
+      } finally {
+        link.close();
+      }
     });
     return const CategoryDetailState(isLoading: true);
   }
 
   // ── 첫 페이지 로딩 ─────────────────────────────────────────────────────
-  Future<void> _loadInitial(String tag) async {
+  bool _isCurrent(int requestId) => !_disposed && requestId == _requestId;
+
+  Future<void> _loadInitial(
+      String tag, String language, int requestId) async {
+    if (!_isCurrent(requestId)) return;
     final repo = ref.read(quoteRepositoryProvider);
-    final language = ref.read(themeNotifierProvider).languageCode;
 
     // 1. 로컬 캐시 먼저 표시 (빠른 첫 렌더링)
     final cached = await _loadCache(tag, language);
+    if (!_isCurrent(requestId)) return;
     if (cached != null && cached.isNotEmpty) {
       state = state.copyWith(
         quotes: cached,
-        isLoading: false,
-        hasMore: true,
+        isLoading: true,
+        hasMore: false,
         clearError: true,
       );
     }
@@ -86,9 +106,9 @@ class CategoryDetailNotifier
     try {
       final result = await repo.fetchByTagPaginated(tag,
           limit: _pageSize, language: language);
-
+        if (!_isCurrent(requestId)) return;
       await _saveCache(tag, language, result.quotes);
-
+        if (!_isCurrent(requestId)) return;
       state = state.copyWith(
         quotes: result.quotes,
         isLoading: false,
@@ -97,6 +117,7 @@ class CategoryDetailNotifier
         clearError: true,
       );
     } catch (e, st) {
+      if (!_isCurrent(requestId)) return;
       if (kDebugMode) debugPrint('[CategoryDetail] 로딩 실패 (tag=$tag): $e\n$st');
       final lang = ref.read(themeNotifierProvider).languageCode;
       state = state.copyWith(
@@ -110,7 +131,8 @@ class CategoryDetailNotifier
 
   // ── 다음 페이지 (무한 스크롤) ──────────────────────────────────────────
   Future<void> loadMore() async {
-    if (state.isLoadingMore || !state.hasMore) return;
+    if (state.isLoading || state.isLoadingMore || !state.hasMore) return;
+    final requestId = _requestId;
 
     state = state.copyWith(isLoadingMore: true);
 
@@ -123,7 +145,7 @@ class CategoryDetailNotifier
         limit: _pageSize,
         language: language,
       );
-
+      if (!_isCurrent(requestId)) return;
       state = state.copyWith(
         quotes: [...state.quotes, ...result.quotes],
         isLoadingMore: false,
@@ -132,6 +154,7 @@ class CategoryDetailNotifier
         clearError: true,
       );
     } catch (e) {
+      if (!_isCurrent(requestId)) return;
       if (kDebugMode) debugPrint('[CategoryDetail] loadMore 실패: $e');
       state = state.copyWith(isLoadingMore: false);
     }
@@ -139,8 +162,10 @@ class CategoryDetailNotifier
 
   // ── 재시도 ─────────────────────────────────────────────────────────────
   Future<void> retry() async {
+    final requestId = ++_requestId;
+    final language = ref.read(themeNotifierProvider).languageCode;
     state = const CategoryDetailState(isLoading: true);
-    await _loadInitial(arg);
+    await _loadInitial(arg, language, requestId);
   }
 
   // ── 로컬 캐시 (SharedPreferences) ─────────────────────────────────────

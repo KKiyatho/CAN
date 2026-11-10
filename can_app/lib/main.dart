@@ -1,13 +1,17 @@
-﻿import 'dart:ui' as ui;
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app_shell.dart';
 import 'core/auth/auth_providers.dart';
+import 'core/theme/i18n.dart';
 import 'core/theme/theme_notifier.dart';
+import 'features/alarm/alarm_runtime.dart';
 import 'features/auth/login_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 
@@ -41,10 +45,6 @@ class CanApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(themeNotifierProvider.notifier).loadSaved();
-    });
-
     final themeState = ref.watch(themeNotifierProvider);
     final themeData = buildThemeData(themeState);
     final authAsync = ref.watch(authStateProvider);
@@ -54,10 +54,15 @@ class CanApp extends ConsumerWidget {
 
     return MaterialApp(
       title: 'CAN',
+      locale: Locale(themeState.languageCode == 'en' ? 'en' : 'ko'),
+      supportedLocales: const [Locale('ko'), Locale('en')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       debugShowCheckedModeBanner: false,
       theme: themeData,
       themeAnimationDuration: Duration.zero,
-      builder: (context, child) => _MobileViewport(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => _MobileViewport(
+        child: AlarmRuntime(child: child ?? const SizedBox.shrink()),
+      ),
       home: authAsync.when(
         data: (user) {
           if (user == null) return const LoginScreen();
@@ -85,38 +90,145 @@ class _MobileViewport extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxPhoneWidth = constraints.maxWidth > 600 ? 430.0 : constraints.maxWidth * 0.96;
-        final effectiveWidth = maxPhoneWidth.clamp(320.0, 430.0);
+        // PC 창 높이가 낮아도 휴대폰으로 오인하지 않는다.
+        // 실제 모바일 플랫폼은 가로로 돌려도 QR 없이 전체 화면을 사용한다.
+        final mobilePlatform =
+            defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS;
+        if (constraints.maxWidth <= 600 || mobilePlatform) {
+          return child;
+        }
 
-        return ColoredBox(
-          color: const Color(0xFFF2F4F8),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: effectiveWidth,
-                maxHeight: 960,
-              ),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x22000000),
-                      blurRadius: 24,
-                      offset: Offset(0, 10),
-                    ),
-                  ],
+        final showQr = constraints.maxWidth >= 900;
+        final phone = ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430, maxHeight: 960),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x22000000),
+                  blurRadius: 24,
+                  offset: Offset(0, 10),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: LayoutBuilder(
+                builder: (context, phoneConstraints) => MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    size: Size(
+                      phoneConstraints.maxWidth,
+                      phoneConstraints.maxHeight,
+                    ),
+                  ),
                   child: child,
                 ),
               ),
             ),
           ),
         );
+
+        return ColoredBox(
+          color: const Color(0xFFF2F4F8),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: showQr
+                ? Row(
+                    children: [
+                      // 양쪽 공간을 동일하게 유지하여 앱 자체는 화면 중앙 정렬.
+                      const Expanded(child: SizedBox.shrink()),
+                      SizedBox(width: 430, child: Center(child: phone)),
+                      const Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: EdgeInsets.only(left: 24),
+                            child: _DesktopQrCard(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Center(child: phone),
+          ),
+        );
       },
+    );
+  }
+}
+
+class _DesktopQrCard extends ConsumerWidget {
+  const _DesktopQrCard();
+
+  static const _appUrl = 'https://canweb125962.z7.web.core.windows.net/';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(themeNotifierProvider).languageCode;
+    return Container(
+      width: 200,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE4E8EF)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            I18n.t(lang, 'qr.title'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF202938),
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            I18n.t(lang, 'qr.scan'),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFF5C6678), fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          Semantics(
+            label: '${I18n.t(lang, 'qr.open')}: $_appUrl',
+            image: true,
+            child: QrImageView(
+              data: _appUrl,
+              version: QrVersions.auto,
+              size: 168,
+              padding: const EdgeInsets.all(12),
+              backgroundColor: Colors.white,
+              errorCorrectionLevel: QrErrorCorrectLevel.M,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            I18n.t(lang, 'qr.install'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF5C6678),
+              fontSize: 12,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            I18n.t(lang, 'qr.alarmNotice'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF5C6678),
+              fontSize: 10,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -129,8 +241,6 @@ class _SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

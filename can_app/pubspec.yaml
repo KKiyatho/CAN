@@ -57,6 +57,9 @@ dependencies:
   gal: 2.3.0
   web: ^1.1.1
   file_picker: ^10.1.9
+  qr_flutter: ^4.1.0
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:

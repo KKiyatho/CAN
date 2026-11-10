@@ -1,20 +1,29 @@
-import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'alarm_model.dart';
 import 'alarm_repository.dart';
 
-// ---------------------------------------------------------------------------
-// AlarmNotifier
-// ---------------------------------------------------------------------------
+final alarmLoadErrorProvider = StateProvider<Object?>((ref) => null);
+
 class AlarmNotifier extends Notifier<List<AlarmModel>> {
+  late Future<void> ready;
+
   @override
   List<AlarmModel> build() {
-    Future.microtask(() async {
-      final alarms = await ref.read(alarmRepositoryProvider).loadAll();
-      state = alarms;
+    ready = Future.microtask(() async {
+      try {
+        state = await ref.read(alarmRepositoryProvider).loadAll();
+        ref.read(alarmLoadErrorProvider.notifier).state = null;
+      } catch (error) {
+        ref.read(alarmLoadErrorProvider.notifier).state = error;
+      }
     });
     return [];
+  }
+
+  Future<void> reload() async {
+    state = await ref.read(alarmRepositoryProvider).loadAll();
+    ref.read(alarmLoadErrorProvider.notifier).state = null;
   }
 
   Future<void> create({
@@ -23,43 +32,37 @@ class AlarmNotifier extends Notifier<List<AlarmModel>> {
     List<bool>? repeatDays,
     String? unlockPhrase,
   }) async {
-    try {
-      final alarm = await ref.read(alarmRepositoryProvider).create(
-            hour: hour,
-            minute: minute,
-            repeatDays: repeatDays,
-            unlockPhrase: unlockPhrase,
-          );
-      state = [...state, alarm];
-    } catch (e) {
-      if (kDebugMode) debugPrint('[Alarm] create 실패: $e');
-    }
+    await ready;
+    await ref
+        .read(alarmRepositoryProvider)
+        .create(
+          hour: hour,
+          minute: minute,
+          repeatDays: repeatDays,
+          unlockPhrase: unlockPhrase,
+        );
+    await reload();
   }
 
   Future<void> toggle(String id) async {
-    final idx = state.indexWhere((a) => a.id == id);
-    if (idx == -1) return;
-    final updated = state[idx].copyWith(isActive: !state[idx].isActive);
-    final newState = List<AlarmModel>.from(state);
-    newState[idx] = updated;
-    state = newState;
-    await ref.read(alarmRepositoryProvider).update(updated);
+    await ready;
+    final alarm = state.firstWhere((item) => item.id == id);
+    await update(alarm.copyWith(isActive: !alarm.isActive));
   }
 
   Future<void> update(AlarmModel alarm) async {
-    final idx = state.indexWhere((a) => a.id == alarm.id);
-    if (idx == -1) return;
-    final newState = List<AlarmModel>.from(state);
-    newState[idx] = alarm;
-    state = newState;
+    await ready;
     await ref.read(alarmRepositoryProvider).update(alarm);
+    await reload();
   }
 
   Future<void> delete(String id) async {
-    state = state.where((a) => a.id != id).toList();
+    await ready;
     await ref.read(alarmRepositoryProvider).delete(id);
+    await reload();
   }
 }
 
-final alarmNotifierProvider =
-    NotifierProvider<AlarmNotifier, List<AlarmModel>>(AlarmNotifier.new);
+final alarmNotifierProvider = NotifierProvider<AlarmNotifier, List<AlarmModel>>(
+  AlarmNotifier.new,
+);
