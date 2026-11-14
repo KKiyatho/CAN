@@ -1,11 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/storage/user_data.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../shared/models/quote.dart';
 import '../home/quote_repository.dart';
 import 'tag_extractor.dart';
 
-const _kRecentSearchesKey = 'recent_searches';
+const _kRecentSearchesKey = kRecentSearchesKey;
 const _kMaxRecentSearches = 5;
 // ---------------------------------------------------------------------------
 // SearchState

@@ -28,65 +28,39 @@ class CommunityPost {
     required this.createdAt,
   });
 
-  factory CommunityPost.fromMap(Map<String, dynamic> data, {required String id}) {
-    final rawContent = data['content'] as String? ?? '';
-    final rawTitle = data['title'] as String?;
-
-    String resolvedTitle = rawTitle?.trim() ?? '';
-    String resolvedContent = rawContent;
-
-    if (resolvedTitle.isEmpty && rawContent.startsWith('[')) {
-      final splitAt = rawContent.indexOf(']\n');
-      if (splitAt > 1) {
-        resolvedTitle = rawContent.substring(1, splitAt).trim();
-        resolvedContent = rawContent.substring(splitAt + 2).trim();
-      }
-    }
-
+  /// `community_posts` 행(+ 임베드된 `profiles`)을 모델로 변환한다.
+  factory CommunityPost.fromRow(Map<String, dynamic> row) {
+    final profile = row['profiles'];
+    final profileMap = profile is Map<String, dynamic> ? profile : const {};
+    final name = (profileMap['display_name'] as String? ?? '').trim();
+    final emoji = (profileMap['avatar_emoji'] as String? ?? '').trim();
+    final image = (profileMap['avatar_image_data_url'] as String?)?.trim();
     return CommunityPost(
-      id: id,
-      userId: data['userId'] as String? ?? '',
-      displayName: (data['displayName'] as String? ?? 'Guest').trim(),
-      avatarEmoji: (data['avatarEmoji'] as String? ?? '🐣').trim().isEmpty
-          ? '🐣'
-          : (data['avatarEmoji'] as String? ?? '🐣').trim(),
-      avatarImageDataUrl: (data['avatarImageDataUrl'] as String?)?.trim(),
-      quoteId: data['quoteId'] as String?,
-      title: resolvedTitle,
-      content: resolvedContent,
-      likeCount: (data['likeCount'] as num?)?.toInt() ?? 0,
-      createdAt: DateTime.tryParse(data['createdAt'] as String? ?? '') ??
-          DateTime.now(),
+      id: row['id'] as String,
+      userId: row['user_id'] as String? ?? '',
+      displayName: name.isEmpty ? 'Guest' : name,
+      avatarEmoji: emoji.isEmpty ? '🐣' : emoji,
+      avatarImageDataUrl: image == null || image.isEmpty ? null : image,
+      quoteId: row['quote_id'] as String?,
+      title: (row['title'] as String? ?? '').trim(),
+      content: (row['content'] as String? ?? '').trim(),
+      likeCount: (row['like_count'] as num?)?.toInt() ?? 0,
+      createdAt:
+          DateTime.tryParse(row['created_at'] as String? ?? '') ?? DateTime.now(),
     );
   }
 
-  Map<String, dynamic> toMap() => {
-        'userId': userId,
-        'displayName': displayName,
-        'avatarEmoji': avatarEmoji,
-        if (avatarImageDataUrl != null) 'avatarImageDataUrl': avatarImageDataUrl,
-        if (quoteId != null) 'quoteId': quoteId,
-        'title': title,
-        'content': content,
-        'likeCount': likeCount,
-        'createdAt': createdAt.toIso8601String(),
-      };
-
-  CommunityPost copyWith({
-    int? likeCount,
-    bool? likedByMe,
-  }) =>
-      CommunityPost(
-        id: id,
-        userId: userId,
-        displayName: displayName,
-        avatarEmoji: avatarEmoji,
-        avatarImageDataUrl: avatarImageDataUrl,
-        quoteId: quoteId,
-        title: title,
-        content: content,
-        likeCount: likeCount ?? this.likeCount,
-        likedByMe: likedByMe ?? this.likedByMe,
-        createdAt: createdAt,
-      );
+  CommunityPost copyWith({int? likeCount, bool? likedByMe}) => CommunityPost(
+    id: id,
+    userId: userId,
+    displayName: displayName,
+    avatarEmoji: avatarEmoji,
+    avatarImageDataUrl: avatarImageDataUrl,
+    quoteId: quoteId,
+    title: title,
+    content: content,
+    likeCount: likeCount ?? this.likeCount,
+    likedByMe: likedByMe ?? this.likedByMe,
+    createdAt: createdAt,
+  );
 }

@@ -65,8 +65,6 @@ class CommunityNotifier extends Notifier<CommunityState> {
   Future<void> _loadInitial() async {
     final repo = ref.read(communityRepositoryProvider);
     try {
-      await signInAnonymouslyIfNeeded();
-
       final results = await Future.wait([
         repo.fetchPosts(),
         repo.fetchTopPosts(),
@@ -160,7 +158,24 @@ class CommunityNotifier extends Notifier<CommunityState> {
     state = const CommunityState(isLoading: true);
     await _loadInitial();
   }
+  /// 내 글 삭제. 실패하면 예외를 다시 던져 화면이 안내하게 한다.
+  Future<void> deletePost(String postId) async {
+    await ref.read(communityRepositoryProvider).deletePost(postId);
+    _removeLocally(postId);
+  }
 
+  /// 신고한 글은 현재 목록에서 숬긴다.
+  Future<void> reportPost(String postId) async {
+    await ref.read(communityRepositoryProvider).reportPost(postId);
+    _removeLocally(postId);
+  }
+
+  void _removeLocally(String postId) {
+    state = state.copyWith(
+      posts: state.posts.where((p) => p.id != postId).toList(),
+      topPosts: state.topPosts.where((p) => p.id != postId).toList(),
+    );
+  }
   // ── 좋아요 여부를 posts에 반영 ────────────────────────────────────────────
   Future<List<CommunityPost>> _applyLikes(
     List<CommunityPost> posts,

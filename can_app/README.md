@@ -1,16 +1,4 @@
 # can_app
 
-A new Flutter project.
+CAN Flutter 앱. 실행·배포 방법은 저장소 루트의 [README](../README.md)와 [COMMANDS](../COMMANDS.md)를 참고한다.
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.

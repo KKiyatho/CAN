@@ -1,10 +1,14 @@
 {
   "name": "can-api",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "main": "src/functions/*.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "start": "func start"
+    "start": "func start",
+    "test": "node --test \"test/*.test.js\""
   },
   "dependencies": {
     "@azure/functions": "^4.5.0",

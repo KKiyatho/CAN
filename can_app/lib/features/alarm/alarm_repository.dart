@@ -41,7 +41,7 @@ class AlarmRepository {
   Future<void> _initialize() async {
     if (!_native) return;
     tz.initializeTimeZones();
-    final local = await FlutterTimezone.getLocalTimezone();
+    final local = (await FlutterTimezone.getLocalTimezone()).identifier;
     tz.setLocalLocation(tz.getLocation(local));
     await _plugin.initialize(
       const InitializationSettings(

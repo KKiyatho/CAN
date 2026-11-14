@@ -29,15 +29,6 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    // Anonymous 로그인 — 실패해도 UI는 계속 표시, 글 작성만 막힘
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        await signInAnonymouslyIfNeeded();
-      } catch (_) {
-        // 인증 실패는 조용히 처리 (피드 읽기는 계속 가능)
-        // 로그는 프로덕션에서 외부 모니터링 도구로 전달할 것
-      }
-    });
   }
 
   @override
@@ -54,38 +45,82 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   }
 
   Future<void> _openCreatePost() async {
-    // userId가 없으면 익명 로그인 재시도
-    String? userId = ref.read(currentUserIdProvider);
-    if (userId == null) {
-      try {
-        final user = await signInAnonymouslyIfNeeded();
-        userId = user?.id;
-      } catch (_) {}
-    }
-
-    if (userId == null) {
-      final lang = ref.read(themeNotifierProvider).languageCode;
-      if (!mounted) return;
+    final lang = ref.read(themeNotifierProvider).languageCode;
+    final user = ref.read(authStateProvider).valueOrNull;
+    if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(I18n.t(lang, 'community.authPending'))),
       );
       return;
     }
+    // 게스트(익명) 계정은 읽기·좋아요만 가능하다. 서버 RLS도 동일하게 차단한다.
+    if (user.isAnonymous) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(I18n.t(lang, 'community.registerRequired'))),
+      );
+      return;
+    }
 
-    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => PostCreateScreen(userId: userId!),
+        builder: (_) => const PostCreateScreen(),
         fullscreenDialog: true,
       ),
     );
     ref.read(communityNotifierProvider.notifier).refresh();
   }
 
+  Future<bool> _confirm(String lang, String messageKey, String actionKey) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(I18n.t(lang, messageKey)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(I18n.t(lang, 'common.cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(I18n.t(lang, actionKey)),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  Future<void> _moderate(CommunityPost post, {required bool mine}) async {
+    final lang = ref.read(themeNotifierProvider).languageCode;
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await _confirm(
+      lang,
+      mine ? 'community.deleteConfirm' : 'community.reportConfirm',
+      mine ? 'community.delete' : 'community.report',
+    );
+    if (!confirmed) return;
+    final notifier = ref.read(communityNotifierProvider.notifier);
+    try {
+      if (mine) {
+        await notifier.deletePost(post.id);
+      } else {
+        await notifier.reportPost(post.id);
+      }
+      messenger.showSnackBar(SnackBar(
+        content: Text(I18n.t(lang, mine ? 'community.deleted' : 'community.reported')),
+      ));
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(I18n.t(lang, 'community.actionFailed'))),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final lang = ref.watch(themeNotifierProvider).languageCode;
     final communityState = ref.watch(communityNotifierProvider);
+    final myId = ref.watch(currentUserIdProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -148,6 +183,11 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                               return _PostCard(
                                 post: communityState.posts[i],
                                 lang: lang,
+                                isMine: communityState.posts[i].userId == myId,
+                                onModerate: () => _moderate(
+                                  communityState.posts[i],
+                                  mine: communityState.posts[i].userId == myId,
+                                ),
                                 onLike: () => ref
                                     .read(communityNotifierProvider.notifier)
                                     .toggleLike(communityState.posts[i].id),
@@ -306,10 +346,17 @@ class _TopPostCard extends StatelessWidget {
 // 피드 카드
 // ---------------------------------------------------------------------------
 class _PostCard extends StatelessWidget {
-  const _PostCard(
-      {required this.post, required this.onLike, required this.lang});
+  const _PostCard({
+    required this.post,
+    required this.onLike,
+    required this.onModerate,
+    required this.isMine,
+    required this.lang,
+  });
   final CommunityPost post;
   final VoidCallback onLike;
+  final VoidCallback onModerate;
+  final bool isMine;
   final String lang;
 
   String _timeAgo(DateTime dt) {
@@ -350,6 +397,20 @@ class _PostCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                ),
+                PopupMenuButton<void>(
+                  tooltip: I18n.t(lang, isMine ? 'community.delete' : 'community.report'),
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.more_horiz, size: 20),
+                  itemBuilder: (_) => [
+                    PopupMenuItem<void>(
+                      onTap: onModerate,
+                      child: Text(I18n.t(
+                        lang,
+                        isMine ? 'community.delete' : 'community.report',
+                      )),
+                    ),
+                  ],
                 ),
               ],
             ),

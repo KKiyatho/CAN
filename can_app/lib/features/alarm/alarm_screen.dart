@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/gestures.dart' show GestureBinding, PointerScrollEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -97,6 +98,11 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
   Future<void> _requestPermission() async {
     if (kIsWeb) return; // 웹은 권한 요청 불필요
     await Permission.notification.request();
+    // Android 12–32는 정확한 알람을 사용자가 설정에서 허용해야 한다(33+는 자동 허용).
+    if (defaultTargetPlatform == TargetPlatform.android &&
+        !await Permission.scheduleExactAlarm.isGranted) {
+      await Permission.scheduleExactAlarm.request();
+    }
   }
 
   Future<void> _showCreateSheet() async {

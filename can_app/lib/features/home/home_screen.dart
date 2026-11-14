@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -8,8 +9,10 @@ import 'package:share_plus/share_plus.dart' show Share;
 import '../../core/auth/auth_providers.dart';
 import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
+import '../community/community_notifier.dart';
 import '../profile/profile_repository.dart';
 import '../profile/user_profile.dart';
+import '../search/search_notifier.dart';
 import '../../shared/models/quote.dart';
 import '../../shared/widgets/quote_card.dart';
 import '../../shared/widgets/state_views.dart';
@@ -239,6 +242,54 @@ class _ProfileBottomSheetState extends ConsumerState<_ProfileBottomSheet> {
     _future = _loadProfileData();
   }
 
+  /// 계정이 바뀌면 이전 사용자의 화면 상태가 남지 않도록 사용자별 provider를 초기화한다.
+  void _resetUserState() {
+    ref.invalidate(homeNotifierProvider);
+    ref.invalidate(searchNotifierProvider);
+    ref.invalidate(communityNotifierProvider);
+    ref.invalidate(currentUserProfileProvider);
+  }
+
+  Future<void> _logout() async {
+    await signOutCurrentUser();
+    _resetUserState();
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _deleteAccount(String lang) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(I18n.t(lang, 'profile.deleteAccount')),
+        content: Text(I18n.t(lang, 'profile.deleteAccountBody')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(I18n.t(lang, 'common.cancel')),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(I18n.t(lang, 'profile.deleteAccount')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await deleteCurrentAccount();
+      _resetUserState();
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(I18n.t(lang, 'profile.deleteAccountFailed'))),
+      );
+    }
+  }
+
   Future<_ProfileData> _loadProfileData() async {
     final repo = ref.read(quoteRepositoryProvider);
     final bookmarked = await repo.fetchQuotesByIds(
@@ -332,18 +383,22 @@ class _ProfileBottomSheetState extends ConsumerState<_ProfileBottomSheet> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: authUser == null
-                        ? null
-                        : () async {
-                            await signOutCurrentUser();
-                            if (context.mounted) Navigator.of(context).pop();
-                          },
+                    onPressed: authUser == null ? null : _logout,
                     icon: const Icon(Icons.logout),
                     label: Text(I18n.t(lang, 'profile.logout')),
                   ),
                 ),
               ],
             ),
+            if (authUser != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  style: TextButton.styleFrom(foregroundColor: cs.error),
+                  onPressed: () => _deleteAccount(lang),
+                  child: Text(I18n.t(lang, 'profile.deleteAccount')),
+                ),
+              ),
             const SizedBox(height: 14),
             Expanded(
               child: FutureBuilder<_ProfileData>(
@@ -654,7 +709,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
       return;
     }
 
-    if (bytes.length > 150 * 1024) {
+    if (bytes.length > 5 * 1024 * 1024) {
       if (!mounted) return;
       final lang = ref.read(themeNotifierProvider).languageCode;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -663,9 +718,36 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
       return;
     }
 
+    // DB·피드 전송량을 줄이기 위해 항상 128px PNG로 변환해 저장한다.
+    final avatar = await _resizeAvatar(bytes);
+    if (!mounted) return;
+    if (avatar == null) {
+      final lang = ref.read(themeNotifierProvider).languageCode;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(I18n.t(lang, 'profile.imageTooLarge'))),
+      );
+      return;
+    }
+
     setState(() {
-      _imageDataUrl = 'data:$mime;base64,${base64Encode(bytes)}';
+      _imageDataUrl = 'data:image/png;base64,${base64Encode(avatar)}';
     });
+  }
+
+  /// 디코딩에 실패하거나 결과가 DB 제한(약 70KB)을 넘으면 null.
+  static Future<Uint8List?> _resizeAvatar(Uint8List bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(bytes, targetWidth: 128);
+      final frame = await codec.getNextFrame();
+      final data = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+      codec.dispose();
+      frame.image.dispose();
+      if (data == null) return null;
+      final png = data.buffer.asUint8List();
+      return png.length > 70 * 1024 ? null : png;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// 파일 시그니처(magic bytes)로 MIME 타입 판별.

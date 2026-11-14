@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/auth/auth_providers.dart';
+import '../../core/config/app_config.dart';
 import '../../core/theme/i18n.dart';
 import '../../core/theme/theme_notifier.dart';
 
@@ -93,7 +94,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final client = ref.read(supabaseClientProvider);
       // 웹: 쿼리/해시를 뺀 origin 만 사용 (Supabase Redirect URLs 허용 목록과 일치시키기 위함)
-      final redirect = kIsWeb ? Uri.base.origin : 'can://login-callback';
+      final redirect = kIsWeb ? Uri.base.origin : AppConfig.oauthRedirectUrl;
       await client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: redirect,

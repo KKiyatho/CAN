@@ -1,8 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-const supabaseUrl = 'https://xlqqeypfomtvkxeyyxek.supabase.co';
-const supabasePublishableKey = 'sb_publishable_VVPXLJBHNaZaaub6-RlgNg_Q7wa5B0Z';
+import '../storage/user_data.dart';
 
 class AppUser {
   const AppUser({
@@ -70,5 +69,21 @@ Future<AppUser?> signInAnonymouslyIfNeeded([SupabaseClient? client]) async {
 
 Future<void> signOutCurrentUser([SupabaseClient? client]) async {
   final supabase = client ?? Supabase.instance.client;
-  await supabase.auth.signOut();
+  try {
+    await supabase.auth.signOut();
+  } finally {
+    await clearUserLocalData();
+  }
+}
+
+/// 서버의 계정·프로필·게시글을 삭제한 뒤 이 기기의 세션과 개인 데이터를 정리한다.
+Future<void> deleteCurrentAccount([SupabaseClient? client]) async {
+  final supabase = client ?? Supabase.instance.client;
+  await supabase.rpc('delete_my_account');
+  try {
+    await supabase.auth.signOut(scope: SignOutScope.local);
+  } catch (_) {
+    // 계정이 이미 삭제되어 서버 로그아웃이 거부되어도 로컬 세션은 정리된다.
+  }
+  await clearUserLocalData();
 }

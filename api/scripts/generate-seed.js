@@ -1,12 +1,13 @@
-// 실존 인물의 명언 시드 생성 스크립트 (1회성)
-// 사용: $env:AOAI_KEY=...; node scripts/generate-seed.js
+// 실존 인물의 명언 시드 생성 스크립트 (운영 데이터 갱신용 수동 도구)
+// 사용: $env:AOAI_ENDPOINT='https://<resource>.cognitiveservices.azure.com'; $env:AOAI_KEY=...; node scripts/generate-seed.js
+// 생성된 문구는 사람이 출처를 검수한 뒤 반영해야 한다.
 const fs = require('fs');
 const path = require('path');
 
-const ENDPOINT = process.env.AOAI_ENDPOINT || 'https://can-ai-55425.cognitiveservices.azure.com';
+const ENDPOINT = process.env.AOAI_ENDPOINT;
 const DEPLOYMENT = process.env.AOAI_DEPLOYMENT || 'gpt-4-1-mini';
 const KEY = process.env.AOAI_KEY;
-if (!KEY) throw new Error('AOAI_KEY 환경 변수가 필요합니다.');
+if (!ENDPOINT || !KEY) throw new Error('AOAI_ENDPOINT, AOAI_KEY 환경 변수가 필요합니다.');
 
 const OCCUPATIONS = ['철학자', '기업가', '작가', '과학자', '예술가', '운동선수', '정치가', '종교인'];
 const TOPIC_TAGS = ['불안', '지침', '면접', '관계', '철학', '성공', '독서', '지혜', '창의력', '도전', '용기', '믿음', '사랑', '행복', '자기계발', '삶'];

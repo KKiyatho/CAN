@@ -9,6 +9,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app_shell.dart';
 import 'core/auth/auth_providers.dart';
+import 'core/config/app_config.dart';
 import 'core/theme/i18n.dart';
 import 'core/theme/theme_notifier.dart';
 import 'features/alarm/alarm_runtime.dart';
@@ -33,8 +34,8 @@ Future<void> main() async {
   GoogleFonts.config.allowRuntimeFetching = false;
 
   await Supabase.initialize(
-    url: supabaseUrl,
-    publishableKey: supabasePublishableKey,
+    url: AppConfig.supabaseUrl,
+    publishableKey: AppConfig.supabasePublishableKey,
   );
 
   runApp(const ProviderScope(child: CanApp()));
@@ -163,7 +164,7 @@ class _MobileViewport extends StatelessWidget {
 class _DesktopQrCard extends ConsumerWidget {
   const _DesktopQrCard();
 
-  static const _appUrl = 'https://canweb125962.z7.web.core.windows.net/';
+  static const _appUrl = AppConfig.webAppUrl;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

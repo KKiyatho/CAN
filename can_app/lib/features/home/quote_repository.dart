@@ -5,26 +5,45 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/config/app_config.dart';
+import '../../core/storage/user_data.dart';
 import '../../shared/models/quote.dart';
 
-const _kBookmarksKey = 'bookmarked_quote_ids';
-const _kLikesKey = 'liked_quote_ids';
+const _kBookmarksKey = kBookmarksKey;
+const _kLikesKey = kLikesKey;
 const _kDeviceIdKey = 'device_id';
-const _kAiQuotesKey = 'ai_quotes_cache';
+const _kAiQuotesKey = kAiQuotesKey;
 const _kAiQuotesMax = 200;
 
 // ---------------------------------------------------------------------------
 // QuoteRepository
 // ---------------------------------------------------------------------------
 class QuoteRepository {
-  QuoteRepository();
+  QuoteRepository({
+    http.Client? client,
+    Future<String?> Function()? accessToken,
+  })  : _client = client,
+        _accessToken = accessToken ?? _sessionAccessToken;
 
-  /// 감정 추천 API (Azure Functions + Azure OpenAI). 빌드 시 --dart-define 으로 교체 가능.
-  static const String _recommendUrl = String.fromEnvironment(
-    'CAN_RECOMMEND_URL',
-    defaultValue: 'https://can-api-55425.azurewebsites.net/api/recommend',
-  );
+  final http.Client? _client;
+  final Future<String?> Function() _accessToken;
+
+  /// 현재 Supabase 세션의 액세스 토큰. 만료되었으면 갱신하고, 세션이 없으면 null.
+  static Future<String?> _sessionAccessToken() async {
+    try {
+      final auth = Supabase.instance.client.auth;
+      var session = auth.currentSession;
+      if (session == null) return null;
+      if (session.isExpired) session = (await auth.refreshSession()).session;
+      return session?.accessToken;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static const String _recommendUrl = AppConfig.recommendUrl;
 
   static List<Quote>? _curatedKo;
   static List<Quote>? _curatedEn;
@@ -220,13 +239,18 @@ class QuoteRepository {
     String language = 'ko',
   }) async {
     try {
-      final res = await http
-          .post(
-            Uri.parse(_recommendUrl),
-            headers: const {'Content-Type': 'application/json'},
-            body: jsonEncode({'input': input, 'lang': language}),
-          )
-          .timeout(const Duration(seconds: 20));
+      final token = await _accessToken();
+      // 로그인 세션이 없으면 서버가 거부하므로 호출하지 않고 로컬 검색으로 대체한다.
+      if (token == null) return null;
+      final post = _client?.post ?? http.post;
+      final res = await post(
+        Uri.parse(_recommendUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'input': input, 'lang': language}),
+      ).timeout(const Duration(seconds: 20));
       if (res.statusCode != 200) return null;
       final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
       final main = _aiQuote(data['quote'], language);
@@ -285,6 +309,15 @@ class QuoteRepository {
     );
   }
 
+  /// 북마크·좋아요에 저장되는 ID라 String.hashCode(실행마다 달라질 수 있음) 대신 FNV-1a를 쓴다.
+  static String _stableAiId(String author, String content) {
+    var hash = 0x811c9dc5;
+    for (final unit in '$author|$content'.codeUnits) {
+      hash = ((hash ^ unit) * 0x01000193) & 0xffffffff;
+    }
+    return 'ai_${hash.toRadixString(16).padLeft(8, '0')}';
+  }
+
   /// AI 가 찾아온 명언 JSON → Quote (로컬 데이터셋에 없는 외부 명언)
   Quote? _aiQuote(Object? raw, String language) {
     if (raw is! Map<String, dynamic>) return null;
@@ -292,7 +325,7 @@ class QuoteRepository {
     final author = (raw['author'] as String?)?.trim() ?? '';
     if (content.isEmpty || author.isEmpty) return null;
     return Quote(
-      id: 'ai_${content.hashCode}',
+      id: _stableAiId(author, content),
       content: content,
       author: author,
       source: raw['source'] as String?,

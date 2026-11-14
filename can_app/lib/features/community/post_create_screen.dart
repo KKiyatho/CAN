@@ -43,8 +43,7 @@ String? _validateTitle(String raw, String lang) {
 // PostCreateScreen — 글 작성 화면
 // ---------------------------------------------------------------------------
 class PostCreateScreen extends ConsumerStatefulWidget {
-  const PostCreateScreen({super.key, required this.userId});
-  final String userId;
+  const PostCreateScreen({super.key});
 
   @override
   ConsumerState<PostCreateScreen> createState() => _PostCreateScreenState();
@@ -64,20 +63,15 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
     super.dispose();
   }
 
+  // 등록 버튼 활성화(isValid)가 입력 내용에 따라 달라지므로 오류 문구가 같아도 항상 다시 그린다.
   void _onTitleChanged(String value) {
     final lang = ref.read(themeNotifierProvider).languageCode;
-    final error = _validateTitle(value, lang);
-    if (_titleValidationError != error) {
-      setState(() => _titleValidationError = error);
-    }
+    setState(() => _titleValidationError = _validateTitle(value, lang));
   }
 
   void _onChanged(String value) {
     final lang = ref.read(themeNotifierProvider).languageCode;
-    final error = _validateContent(value, lang);
-    if (_validationError != error) {
-      setState(() => _validationError = error);
-    }
+    setState(() => _validationError = _validateContent(value, lang));
   }
 
   Future<void> _submit() async {
@@ -103,25 +97,28 @@ class _PostCreateScreenState extends ConsumerState<PostCreateScreen> {
 
     try {
       final authUser = ref.read(authStateProvider).valueOrNull;
-      final currentUid = authUser?.id;
-      final effectiveUid = currentUid ?? widget.userId;
+      if (authUser == null) {
+        throw const CommunityException(CommunityFailure.unknown);
+      }
+      // 게시글은 저장된 프로필에 연결되므로 먼저 프로필을 보장한다.
       final profileRepo = ref.read(profileRepositoryProvider);
-      final effectiveProfile = authUser == null
-          ? null
-          : await profileRepo.resolveEffectiveProfile(authUser);
+      final profile = await profileRepo.resolveEffectiveProfile(authUser);
+      await profileRepo.saveProfile(profile);
       await ref.read(communityRepositoryProvider).createPost(
-        userId: effectiveUid,
-        displayName: effectiveProfile?.displayName ?? 'Guest',
-        avatarEmoji: effectiveProfile?.avatarEmoji ?? '🐣',
-        avatarImageDataUrl: effectiveProfile?.avatarImageDataUrl,
-        title: title,
+            title: title,
             content: content,
           );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
+        final failure = e is CommunityException ? e.failure : null;
+        final key = switch (failure) {
+          CommunityFailure.registrationRequired => 'community.registerRequired',
+          CommunityFailure.rateLimited => 'postCreate.rateLimit',
+          _ => 'postCreate.fail',
+        };
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(I18n.t(lang, 'postCreate.fail'))),
+          SnackBar(content: Text(I18n.t(lang, key))),
         );
         setState(() => _isSubmitting = false);
       }
